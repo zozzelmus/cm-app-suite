@@ -11,6 +11,38 @@
   "accessTokenLifespan": 900,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 28800,
+  "clientScopes": [
+    {
+      "name": "conduct:use",
+      "description": "Entry-level access to the Conduct application",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": ""
+      }
+    },
+    {
+      "name": "conduct:admin-panel",
+      "description": "Access to the Conduct admin panel (LOB/CaseType/Role config)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": ""
+      }
+    },
+    {
+      "name": "conduct:audit-export",
+      "description": "Permission to export regulator-formatted audit dumps",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "consent.screen.text": ""
+      }
+    }
+  ],
   "clients": [
     {
       "clientId": "conduct-bff",
@@ -27,17 +59,11 @@
       "attributes": {
         "post.logout.redirect.uris": "+",
         "pkce.code.challenge.method": "S256"
-      }
+      },
+      "defaultClientScopes": ["openid", "profile", "email", "conduct:use"],
+      "optionalClientScopes": ["conduct:admin-panel", "conduct:audit-export"]
     }
   ],
-  "roles": {
-    "realm": [
-      { "name": "case.read",        "description": "Read conduct cases (LOB-scoped)" },
-      { "name": "case.create",      "description": "Create conduct cases" },
-      { "name": "case.transfer",    "description": "Transfer cases between LOBs" },
-      { "name": "case.admin",       "description": "Cross-LOB administrative access" }
-    ]
-  },
   "users": [
     {
       "username": "demo",
@@ -46,8 +72,7 @@
       "emailVerified": true,
       "firstName": "Demo",
       "lastName": "User",
-      "credentials": [{ "type": "password", "value": "demo", "temporary": false }],
-      "realmRoles": ["case.read", "case.create"]
+      "credentials": [{ "type": "password", "value": "demo", "temporary": false }]
     }
   ]
 }
