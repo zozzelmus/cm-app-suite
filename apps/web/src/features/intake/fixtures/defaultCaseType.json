@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "title": "Default conduct case",
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 5000,
+      "x-ui:control": "textarea",
+      "x-ui:order": 10,
+      "x-ui:label": "Summary",
+      "x-ui:help": "Concise description of the conduct concern."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "x-ui:control": "datetime",
+      "x-ui:order": 20,
+      "x-ui:label": "Occurred at"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["Low", "Medium", "High", "Critical"],
+      "x-ui:control": "select",
+      "x-ui:order": 30,
+      "x-ui:label": "Severity"
+    }
+  },
+  "required": ["summary"]
+}

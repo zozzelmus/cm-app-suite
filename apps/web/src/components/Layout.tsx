@@ -12,6 +12,7 @@ export function Layout() {
         <nav className="flex gap-4 text-sm text-[var(--color-muted-foreground)]">
           <NavLink to="/" end className={({ isActive }) => cn(isActive && 'text-[var(--color-foreground)]')}>Home</NavLink>
           <NavLink to="/cases" className={({ isActive }) => cn(isActive && 'text-[var(--color-foreground)]')}>Cases</NavLink>
+          <NavLink to="/intake" className={({ isActive }) => cn(isActive && 'text-[var(--color-foreground)]')}>New case</NavLink>
         </nav>
         <div className="ml-auto text-sm">
           {loading ? '…'
