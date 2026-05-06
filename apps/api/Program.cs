@@ -1,14 +1,26 @@
 using Conduct.Infrastructure;
+using Conduct.Infrastructure.Outbox;
 using Conduct.Infrastructure.Seed;
+using Confluent.Kafka;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddNpgsqlDbContext<ConductDbContext>("conductdb");
+builder.AddKafkaProducer<string, string>("kafka", settings =>
+{
+    settings.Config.Acks = Acks.All;
+    settings.Config.EnableIdempotence = true;
+    settings.Config.LingerMs = 5;
+    settings.Config.CompressionType = CompressionType.Zstd;
+});
 
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<Seeder>();
+builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection("Outbox"));
+builder.Services.AddScoped<OutboxRelay>();
+builder.Services.AddHostedService<OutboxRelayHost>();
 
 var app = builder.Build();
 

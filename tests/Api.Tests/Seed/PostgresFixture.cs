@@ -24,8 +24,15 @@ public sealed class PostgresFixture : IAsyncLifetime
     // Build a DbContext bound to a fresh database name. Caller is responsible for disposing.
     public async Task<ConductDbContext> CreateFreshDbAsync()
     {
+        var (db, _) = await CreateFreshDbWithConnStringAsync();
+        return db;
+    }
+
+    // Variant that also returns the full connection string (incl. credentials) so a second
+    // DbContext can be wired against the same database — used for concurrency tests.
+    public async Task<(ConductDbContext Db, string ConnectionString)> CreateFreshDbWithConnStringAsync()
+    {
         var dbName = $"db_{Guid.NewGuid():N}";
-        // Connect to default db, create new db, then connect to new db
         await using (var admin = new Npgsql.NpgsqlConnection(Container.GetConnectionString()))
         {
             await admin.OpenAsync();
@@ -45,7 +52,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         var db = new ConductDbContext(opts);
         await db.Database.EnsureCreatedAsync();
-        return db;
+        return (db, connStr);
     }
 }
 

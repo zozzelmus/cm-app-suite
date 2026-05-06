@@ -91,6 +91,13 @@ Items captured from grilling sessions and incremental discovery. Not prioritized
 - Disaster recovery RPO/RTO documentation
 - Performance: closure-table for LOB hierarchy if adjacency-walk slows
 
+## Tech debt — surfaced by F3 review
+- **Switch outbox publish from per-row `await ProduceAsync` to batched `Produce` + `Flush(ct)`** — current per-row await defeats `LingerMs` and bottlenecks throughput at ~1/RTT. Reviewer flagged HIGH; deferred since correctness is unaffected.
+- **`OutboxOptions.MaxAttempts` quarantine instead of skip** — currently rows above MaxAttempts are silently excluded from polling; should move to a `outbox_dead` sister table or surface a metric / log alert when rows quarantine.
+- **`OutboxRelayHost.StopAsync` explicit `producer.Flush(TimeSpan.FromSeconds(5))`** once the per-row→batch switch lands (Aspire disposal handles current per-row case).
+- **Bound `ProducerConfig.MessageTimeoutMs`** (e.g., 30s) so a stuck broker surfaces as a row-level failure rather than hanging the relay loop.
+- **Outbox relay tests missing**: large-batch ordering preservation (50 rows same Key → monotonic offsets), retry-then-success after broker recovers (was AC5's `OutboxRelayIdempotencyTests.cs`), cancellation mid-batch.
+
 ## Tech debt — surfaced by F1 review
 - **FK constraints** on cross-table Guid columns (Cases.CaseTypeId/OwnerLobId, CaseParty.CaseId/PartyId, Assignments.RoleId/SubjectId, User.PartyId, EmployeeProfile.PartyId, GroupMembership.GroupId/UserId, CustomerProfile.AccountManagerEmployeePartyId, etc.). Currently absent so migrations stay flexible while domain stabilizes; revisit before prod.
 - **PostgresFixture cleanup** — drop test databases on dispose (not just stop container) to avoid leaks if container is ever reused (e.g. `WithReuse()` switch).
