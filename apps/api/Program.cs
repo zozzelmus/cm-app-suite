@@ -1,4 +1,5 @@
 using Conduct.Infrastructure;
+using Conduct.Infrastructure.Multitenancy;
 using Conduct.Infrastructure.Outbox;
 using Conduct.Infrastructure.Seed;
 using Confluent.Kafka;
@@ -7,7 +8,16 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-builder.AddNpgsqlDbContext<ConductDbContext>("conductdb");
+
+// Tenant context (singletons — AsyncLocal-backed so per-request state propagates without
+// a DI scope, which Aspire's pooled DbContext can't carry). Must register BEFORE
+// AddNpgsqlDbContext so the interceptor instance is available to the options callback.
+var (_, tenantInterceptor) = builder.Services.AddTenantContext();
+
+builder.AddNpgsqlDbContext<ConductDbContext>(
+    "conductdb",
+    configureDbContextOptions: opts => opts.AddInterceptors(tenantInterceptor));
+
 builder.AddKafkaProducer<string, string>("kafka", settings =>
 {
     settings.Config.Acks = Acks.All;
@@ -26,6 +36,9 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 app.MapOpenApi();
+
+// Resolve the active tenant for every request before any endpoint runs.
+app.UseTenantContext();
 
 app.MapGet("/api/_meta/echo", () => Results.Ok(new
 {
@@ -46,6 +59,10 @@ if (app.Environment.IsDevelopment())
     await db.Database.MigrateAsync();
     if (app.Configuration.GetValue("Seed:Enabled", true))
     {
+        // Seeder inserts rows under RLS — set the tenant for the seed scope so the
+        // interceptor issues `SET app.tenant_id` on the seed connection.
+        var tenant = scope.ServiceProvider.GetRequiredService<ITenantContext>();
+        using var _ = tenant.BeginScope(SeedConstants.DemoTenantId);
         await scope.ServiceProvider.GetRequiredService<Seeder>().SeedAsync();
     }
 }

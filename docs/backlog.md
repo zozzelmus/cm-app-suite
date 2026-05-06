@@ -91,6 +91,14 @@ Items captured from grilling sessions and incremental discovery. Not prioritized
 - Disaster recovery RPO/RTO documentation
 - Performance: closure-table for LOB hierarchy if adjacency-walk slows
 
+## Tech debt — surfaced by F2 review
+- **OutboxRelay reads under RLS will return zero rows in production.** `OutboxRelayHost.ExecuteAsync` opens a fresh DI scope per tick but never sets `app.tenant_id`; once migrations apply RLS, the relay SELECT against `Outbox` is filtered to nothing. Fix options: (a) make `Outbox` RLS-exempt (drop policy on that table — outbox is infra, not domain data), (b) loop tenants per tick + set GUC per loop, (c) introduce a privileged "outbox publisher" role that bypasses RLS and connect under it for the relay context. Recommend (a) — simplest, matches "outbox = infra" mental model.
+- **Tests-only role grants are DELETE-capable.** `PostgresFixture.CreateFreshMigratedDbAsync` grants `app_user` SELECT/INSERT/UPDATE/**DELETE** on `public`. Production app role should be INSERT/UPDATE-only on `AuditEvents` (per `project_data_access.md`); we'll codify that grant set in a separate migration once the runtime role is defined.
+- **Per-test `app_user_<guid>` roles leak in the cluster.** Testcontainers nukes the container on dispose so the leak is bounded, but if we ever add `WithReuse()` for fast inner-loop dev, these accumulate. Drop role on test teardown OR use a single test-cluster role with `SET ROLE`.
+- **`TenantContext` has no defence against accidental scope nesting in HTTP path.** Middleware uses `BeginScope` so previous values restore correctly, but if downstream code calls `BeginScope` with a different tenant the ambient flips silently for that subtree. Add an opt-in "strict" mode that throws on conflicting nested scopes.
+- **No EF Core global query filter on `TenantId`** — relying solely on RLS means an EF query bug that drops the WHERE clause still works correctly (RLS catches it), but the SQL plan also doesn't get the column-equality predicate, so query stats and indexes that assume `WHERE TenantId = ...` may underperform. Add a complementary `HasQueryFilter(x => x.TenantId == ambient)` once the ambient resolver is wired into the DbContext (post-MVP, paired with LOB-visibility filters per `project_data_access.md` Layer 2).
+- **`FrameworkReference Microsoft.AspNetCore.App` on `Conduct.Infrastructure`** pulls in the whole web stack for one middleware. Acceptable for the POC; consider splitting `Conduct.Infrastructure.Web` once we have >1 middleware living there.
+
 ## Tech debt — surfaced by F7 (web intake form)
 - **F7-followup:** replace fixture import in `IntakePage.tsx` with TanStack Query against `/api/case-types/default` once F4 lands; cache the compiled Zod by `$id+SchemaVersion`.
 - **F7-followup:** real Radix-based `Select` for keyboard-navigable enum w/ search (current native `<select>` is fine for MVP).
