@@ -40,3 +40,6 @@ secrets.json
 # Azure
 .azure/
 azure.yaml.local
+
+# Claude Code session artifacts
+.claude/
