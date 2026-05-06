@@ -91,6 +91,13 @@ Items captured from grilling sessions and incremental discovery. Not prioritized
 - Disaster recovery RPO/RTO documentation
 - Performance: closure-table for LOB hierarchy if adjacency-walk slows
 
+## Tech debt — surfaced by F7 (web intake form)
+- **F7-followup:** replace fixture import in `IntakePage.tsx` with TanStack Query against `/api/case-types/default` once F4 lands; cache the compiled Zod by `$id+SchemaVersion`.
+- **F7-followup:** real Radix-based `Select` for keyboard-navigable enum w/ search (current native `<select>` is fine for MVP).
+- **F7-followup:** timezone-aware datetime input (control assumes user's local TZ on submit).
+- **Pre-existing lint debt on `main`:** 4 errors break `pnpm lint` if it's CI-gated — `main.tsx` `any`, `auth.tsx` fast-refresh, `vite.config.ts` triple-slash (+ one more). Recommend a chore commit.
+- **`new Function('z', code)` in `buildZodFromSchema.ts`:** safe because input is server-controlled CaseType schema, NOT user input. If admin UI ever lets unprivileged users author schemas, switch to a sandboxed `json-schema → zod` runtime (or a precompiled bundle of schemas) to avoid arbitrary code execution.
+
 ## Tech debt — surfaced by F3 review
 - **Switch outbox publish from per-row `await ProduceAsync` to batched `Produce` + `Flush(ct)`** — current per-row await defeats `LingerMs` and bottlenecks throughput at ~1/RTT. Reviewer flagged HIGH; deferred since correctness is unaffected.
 - **`OutboxOptions.MaxAttempts` quarantine instead of skip** — currently rows above MaxAttempts are silently excluded from polling; should move to a `outbox_dead` sister table or surface a metric / log alert when rows quarantine.
