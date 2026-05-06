@@ -22,19 +22,27 @@ public sealed class Seeder(ConductDbContext db)
     {
         // Schema lifecycle is the caller's responsibility (Program.cs runs MigrateAsync).
         // Tests use EnsureCreatedAsync via the fixture. Don't double-up here.
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await db.Database.ExecuteSqlRawAsync(
-            "SELECT pg_advisory_xact_lock({0})",
-            new object[] { SeedAdvisoryLockKey },
-            ct);
+        //
+        // Aspire's Npgsql integration applies NpgsqlRetryingExecutionStrategy by default,
+        // which forbids user-initiated transactions unless wrapped in the strategy's ExecuteAsync.
+        // Wrapping here keeps both retry-enabled (Aspire) and retry-disabled (test) DbContexts happy.
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async cancellationToken =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+            await db.Database.ExecuteSqlRawAsync(
+                "SELECT pg_advisory_xact_lock({0})",
+                new object[] { SeedAdvisoryLockKey },
+                cancellationToken);
 
-        await SeedLobsAsync(ct);
-        await SeedDefaultCaseTypeAsync(ct);
-        await SeedBuiltInRolesAsync(ct);
-        var (demoUserId, _) = await SeedDemoUserAndPartyAsync(ct);
-        await SeedDemoAssignmentAsync(demoUserId, ct);
+            await SeedLobsAsync(cancellationToken);
+            await SeedDefaultCaseTypeAsync(cancellationToken);
+            await SeedBuiltInRolesAsync(cancellationToken);
+            var (demoUserId, _) = await SeedDemoUserAndPartyAsync(cancellationToken);
+            await SeedDemoAssignmentAsync(demoUserId, cancellationToken);
 
-        await tx.CommitAsync(ct);
+            await tx.CommitAsync(cancellationToken);
+        }, ct);
     }
 
     // ────────── LOBs ──────────

@@ -30,10 +30,11 @@ var api = builder.AddProject<Projects.Conduct_Api>("api")
     .WaitFor(conductDb)
     .WaitFor(kafka);
 
-// Vite dev server (internal — reached only by BFF in dev)
+// Vite dev server (internal — reached only by BFF in dev).
+// AddViteApp already attaches a default http endpoint; do NOT call WithHttpEndpoint here
+// or Aspire throws "Endpoint with name 'http' already exists".
 var web = builder.AddViteApp("web", "../web", "dev")
-    .WithPnpm(install: true)
-    .WithHttpEndpoint(port: 5173, env: "PORT");
+    .WithPnpm(install: true);
 
 var bff = builder.AddProject<Projects.Conduct_Bff>("bff")
     .WithReference(api)

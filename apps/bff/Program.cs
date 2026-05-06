@@ -104,7 +104,14 @@ app.MapReverseProxy();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapForwarder("/{**catch-all}", "http://web");
+    // Read the Aspire-injected Vite dev URL. WithReference(web) at the AppHost binds
+    // services__web__http__0=<viteUrl> into our env, surfaced by Configuration as services:web:http:0.
+    // MapForwarder doesn't auto-resolve service-discovery names the way cluster destinations do,
+    // so we resolve once at startup.
+    var webUrl = app.Configuration["services:web:http:0"]
+              ?? builder.Configuration["services:web:http:0"]
+              ?? "http://localhost:5173";
+    app.MapForwarder("/{**catch-all}", webUrl);
 }
 else
 {
