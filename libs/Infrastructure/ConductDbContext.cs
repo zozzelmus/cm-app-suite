@@ -2,6 +2,7 @@ using Conduct.Domain.Audit;
 using Conduct.Domain.Authorization;
 using Conduct.Domain.CaseTypes;
 using Conduct.Domain.Cases;
+using Conduct.Domain.Cases.Intake;
 using Conduct.Domain.Identity;
 using Conduct.Domain.Lobs;
 using Conduct.Domain.Parties;
@@ -17,6 +18,7 @@ public class ConductDbContext(DbContextOptions<ConductDbContext> options) : DbCo
     public DbSet<CaseParty> CaseParties => Set<CaseParty>();
     public DbSet<CaseNote> CaseNotes => Set<CaseNote>();
     public DbSet<CaseType> CaseTypes => Set<CaseType>();
+    public DbSet<CaseIntake> CaseIntakes => Set<CaseIntake>();
 
     // LOBs
     public DbSet<Lob> Lobs => Set<Lob>();
@@ -89,6 +91,17 @@ public class ConductDbContext(DbContextOptions<ConductDbContext> options) : DbCo
             e.Property(x => x.TransferRulesJson).HasColumnType("jsonb");
             e.Property(x => x.NotesLifecyclePolicyJson).HasColumnType("jsonb");
             e.HasIndex(x => new { x.TenantId, x.Key }).IsUnique();
+        });
+
+        b.Entity<CaseIntake>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.CaseTypeKey).HasMaxLength(64);
+            e.Property(x => x.LobShortCode).HasMaxLength(32);
+            e.Property(x => x.CaseNumber).HasMaxLength(64);
+            e.Property(x => x.ErrorsJson).HasColumnType("jsonb");
+            e.HasIndex(x => new { x.TenantId, x.Status });
+            e.HasIndex(x => x.CaseId);
         });
 
         // -------- LOBs (adjacency tree) --------

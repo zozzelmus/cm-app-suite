@@ -1,4 +1,6 @@
+using Conduct.Api.Endpoints;
 using Conduct.Infrastructure;
+using Conduct.Infrastructure.Cases.Intake;
 using Conduct.Infrastructure.Multitenancy;
 using Conduct.Infrastructure.Outbox;
 using Conduct.Infrastructure.Seed;
@@ -31,6 +33,7 @@ builder.Services.AddScoped<Seeder>();
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection("Outbox"));
 builder.Services.AddScoped<OutboxRelay>();
 builder.Services.AddHostedService<OutboxRelayHost>();
+builder.Services.AddScoped<IntakeService>();
 
 var app = builder.Build();
 
@@ -46,6 +49,8 @@ app.MapGet("/api/_meta/echo", () => Results.Ok(new
     service = "conduct.api",
     ts = DateTimeOffset.UtcNow
 }));
+
+app.MapIntakeEndpoints();
 
 // Dev-only: apply migrations and run idempotent seed on startup.
 // Production migrations run via `azd hook predeploy` or a one-shot job; seeding production

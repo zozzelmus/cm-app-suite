@@ -91,6 +91,13 @@ Items captured from grilling sessions and incremental discovery. Not prioritized
 - Disaster recovery RPO/RTO documentation
 - Performance: closure-table for LOB hierarchy if adjacency-walk slows
 
+## Tech debt — surfaced by F4 review
+- **JsonSchema parse cache:** `IntakeService.ValidateAgainstSchema` calls `JsonSchema.FromText` on every request. Cache compiled schemas by `(caseTypeId, schemaVersion)` in `IMemoryCache` or `ConcurrentDictionary`. Worth it once intake volume grows.
+- **Endpoint-level tests:** current F4 tests cover `IntakeService` directly. Add `WebApplicationFactory`-based tests that exercise the endpoint mapping (route binding, model binding, error response shape, status codes).
+- **Idempotency-Key HTTP header:** clients can't dedupe retries today (server generates a new receiptId each call). Reserve the `Idempotency-Key` header name in `IntakeRequest` doc-comment so F7 can adopt later.
+- **Tighten outbox payload assertion:** F4 happy-path test does `Contain("summary")`. Deserialize the JSON and assert the structural envelope (`ReceiptId`, `TenantId`, `SchemaVersion`, etc.).
+- **Lesson — every new tenanted entity needs its own RLS migration.** F4 surfaced this gap (CaseIntakes shipped without RLS until a follow-up migration). Codify a checklist + maybe a model-snapshot diff test that fails CI if a new tenanted table lacks an `ENABLE ROW LEVEL SECURITY` migration.
+
 ## Tech debt — surfaced by F2 review
 - **OutboxRelay reads under RLS will return zero rows in production.** `OutboxRelayHost.ExecuteAsync` opens a fresh DI scope per tick but never sets `app.tenant_id`; once migrations apply RLS, the relay SELECT against `Outbox` is filtered to nothing. Fix options: (a) make `Outbox` RLS-exempt (drop policy on that table — outbox is infra, not domain data), (b) loop tenants per tick + set GUC per loop, (c) introduce a privileged "outbox publisher" role that bypasses RLS and connect under it for the relay context. Recommend (a) — simplest, matches "outbox = infra" mental model.
 - **Tests-only role grants are DELETE-capable.** `PostgresFixture.CreateFreshMigratedDbAsync` grants `app_user` SELECT/INSERT/UPDATE/**DELETE** on `public`. Production app role should be INSERT/UPDATE-only on `AuditEvents` (per `project_data_access.md`); we'll codify that grant set in a separate migration once the runtime role is defined.
