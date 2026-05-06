@@ -1,0 +1,53 @@
+{
+  "realm": "conduct",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "sslRequired": "external",
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 28800,
+  "clients": [
+    {
+      "clientId": "conduct-bff",
+      "name": "Conduct BFF (server-side, confidential)",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "dev-secret",
+      "rootUrl": "https://localhost:7001",
+      "redirectUris": ["https://localhost:7001/signin-oidc", "http://localhost:5077/signin-oidc"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "post.logout.redirect.uris": "+",
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "case.read",        "description": "Read conduct cases (LOB-scoped)" },
+      { "name": "case.create",      "description": "Create conduct cases" },
+      { "name": "case.transfer",    "description": "Transfer cases between LOBs" },
+      { "name": "case.admin",       "description": "Cross-LOB administrative access" }
+    ]
+  },
+  "users": [
+    {
+      "username": "demo",
+      "enabled": true,
+      "email": "demo@conduct.local",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "User",
+      "credentials": [{ "type": "password", "value": "demo", "temporary": false }],
+      "realmRoles": ["case.read", "case.create"]
+    }
+  ]
+}

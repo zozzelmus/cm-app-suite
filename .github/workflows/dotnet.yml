@@ -1,0 +1,41 @@
+name: dotnet
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'apps/bff/**'
+      - 'apps/AppHost/**'
+      - 'libs/**'
+      - 'tests/**'
+      - 'Conduct.slnx'
+      - '.github/workflows/dotnet.yml'
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'apps/bff/**'
+      - 'apps/AppHost/**'
+      - 'libs/**'
+      - 'tests/**'
+      - 'Conduct.slnx'
+      - '.github/workflows/dotnet.yml'
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.x'
+      - name: Install Aspire templates
+        run: dotnet new install Aspire.ProjectTemplates --force
+      - run: dotnet restore Conduct.slnx
+      - run: dotnet build Conduct.slnx --no-restore --configuration Release
+      - run: dotnet test Conduct.slnx --no-build --configuration Release --logger "trx;LogFileName=test.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-dotnet
+          path: '**/test.trx'

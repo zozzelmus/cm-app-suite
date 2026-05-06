@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-apphost",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/apps/AppHost/Conduct.AppHost.csproj", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "build-solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/Conduct.slnx"],
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "test-dotnet",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "${workspaceFolder}/Conduct.slnx", "--logger", "console;verbosity=normal"],
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "web-install",
+      "type": "shell",
+      "command": "pnpm install",
+      "options": { "cwd": "${workspaceFolder}/apps/web" },
+      "problemMatcher": []
+    },
+    {
+      "label": "web-dev",
+      "type": "shell",
+      "command": "pnpm dev",
+      "options": { "cwd": "${workspaceFolder}/apps/web" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "web-build",
+      "type": "shell",
+      "command": "pnpm build",
+      "options": { "cwd": "${workspaceFolder}/apps/web" },
+      "problemMatcher": []
+    },
+    {
+      "label": "web-test",
+      "type": "shell",
+      "command": "pnpm test",
+      "options": { "cwd": "${workspaceFolder}/apps/web" },
+      "problemMatcher": []
+    }
+  ]
+}

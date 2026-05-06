@@ -1,0 +1,43 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'libs/**'
+      - 'infra/**'
+      - 'azure.yaml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    if: false  # enable once azd is initialized — see docs/deploy.md
+    steps:
+      - uses: actions/checkout@v5
+      - uses: Azure/setup-azd@v2
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v5
+        with: { node-version: '22', cache: 'pnpm', cache-dependency-path: apps/web/pnpm-lock.yaml }
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: '10.x' }
+      - name: Install Aspire templates
+        run: dotnet new install Aspire.ProjectTemplates --force
+      - name: azd login (federated)
+        run: |
+          azd auth login --client-id "${{ secrets.AZURE_CLIENT_ID }}" \
+            --federated-credential-provider github \
+            --tenant-id "${{ secrets.AZURE_TENANT_ID }}"
+      - run: azd provision --no-prompt
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ENV_NAME: prod
+          AZURE_LOCATION: eastus2
+      - run: azd deploy --no-prompt

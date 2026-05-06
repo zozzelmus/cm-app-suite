@@ -1,0 +1,29 @@
+<Solution>
+  <Folder Name="/apps/" />
+  <Folder Name="/apps/api/">
+    <Project Path="apps/api/Conduct.Api.csproj" />
+  </Folder>
+  <Folder Name="/apps/AppHost/">
+    <Project Path="apps/AppHost/Conduct.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/apps/bff/">
+    <Project Path="apps/bff/Conduct.Bff.csproj" />
+  </Folder>
+  <Folder Name="/libs/" />
+  <Folder Name="/libs/Domain/">
+    <Project Path="libs/Domain/Conduct.Domain.csproj" />
+  </Folder>
+  <Folder Name="/libs/Infrastructure/">
+    <Project Path="libs/Infrastructure/Conduct.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/libs/ServiceDefaults/">
+    <Project Path="libs/ServiceDefaults/Conduct.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Api.Tests/">
+    <Project Path="tests/Api.Tests/Conduct.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Bff.Tests/">
+    <Project Path="tests/Bff.Tests/Conduct.Bff.Tests.csproj" />
+  </Folder>
+</Solution>

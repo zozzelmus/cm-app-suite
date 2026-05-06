@@ -1,0 +1,42 @@
+# .NET
+bin/
+obj/
+*.user
+*.userprefs
+*.suo
+.vs/
+.idea/
+*.swp
+launchSettings.local.json
+
+# Node
+node_modules/
+dist/
+.vite/
+.turbo/
+.next/
+.cache/
+coverage/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pfx
+*.key
+*.pem
+secrets.json
+
+# Aspire
+.aspire/
+
+# Azure
+.azure/
+azure.yaml.local
