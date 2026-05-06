@@ -9,7 +9,7 @@ public static class Permissions
     public const string CaseCreate            = "case.create";
     public const string CaseUpdate            = "case.update";
     public const string CaseClose             = "case.close";
-    public const string CaseReopen            = "case.reopen";
+    public const string CaseReopen            = "case.reopen";              // Closed → Investigating; LifecycleJson references this
 
     // Transfers + tasks
     public const string CaseTransferInitiate  = "case.transfer.initiate";

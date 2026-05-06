@@ -180,6 +180,8 @@ public class ConductDbContext(DbContextOptions<ConductDbContext> options) : DbCo
             e.HasIndex(x => new { x.TenantId, x.SubjectType, x.SubjectId });
             e.HasIndex(x => new { x.TenantId, x.RoleId });
             e.HasIndex(x => new { x.TenantId, x.ScopeType, x.ScopeId });
+            // Natural-key uniqueness — prevents duplicate assignments under racing seeders / admin double-clicks.
+            e.HasIndex(x => new { x.TenantId, x.SubjectType, x.SubjectId, x.RoleId, x.ScopeType, x.ScopeId }).IsUnique();
         });
 
         // -------- Audit --------
