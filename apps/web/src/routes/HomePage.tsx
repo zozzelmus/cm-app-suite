@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { bff } from '@/lib/bff'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/useAuth'
 
 type Echo = { ok: boolean; service: string; ts: string }
 

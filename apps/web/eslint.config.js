@@ -19,4 +19,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  // shadcn/ui primitives commonly export both a component and a non-component (e.g.,
+  // `buttonVariants` cva). That's the canonical shadcn pattern; relax the rule here so
+  // we don't have to scatter eslint-disable comments across every primitive.
+  {
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

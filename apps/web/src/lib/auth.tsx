@@ -1,20 +1,7 @@
-import { createContext, useContext, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { bff, HttpError } from './bff'
-
-export type User = {
-  name: string
-  claims: { type: string; value: string }[]
-}
-
-type AuthCtx = {
-  user: User | null
-  loading: boolean
-  signIn: (returnUrl?: string) => void
-  signOut: () => Promise<void>
-}
-
-const Ctx = createContext<AuthCtx | null>(null)
+import { AuthContext, type AuthCtx, type User } from './authContext'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const q = useQuery<User | null>({
@@ -41,11 +28,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   }
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
-}
-
-export function useAuth() {
-  const ctx = useContext(Ctx)
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
-  return ctx
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
