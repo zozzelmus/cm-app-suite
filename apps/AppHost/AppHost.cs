@@ -9,6 +9,12 @@ var postgres = builder.AddPostgres("postgres")
 
 var conductDb = postgres.AddDatabase("conductdb");
 
+// Kafka — bank-standard messaging; local container in dev, Azure Event Hubs (Kafka API) in prod
+var kafka = builder.AddKafka("kafka")
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithDataVolume("conduct-kafka-data")
+    .WithKafkaUI(); // browser UI for inspecting topics during dev
+
 // Keycloak — dev mode w/ realm import from infra/keycloak/realm
 var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26.3")
     .WithArgs("start-dev", "--import-realm")
@@ -20,7 +26,9 @@ var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26
 
 var api = builder.AddProject<Projects.Conduct_Api>("api")
     .WithReference(conductDb)
-    .WaitFor(conductDb);
+    .WithReference(kafka)
+    .WaitFor(conductDb)
+    .WaitFor(kafka);
 
 // Vite dev server (internal — reached only by BFF in dev)
 var web = builder.AddViteApp("web", "../web", "dev")
