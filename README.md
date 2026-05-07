@@ -1,6 +1,6 @@
-# conduct-app-suite
+# cm-app-suite
 
-Conduct case management for a finance org. Multi-LOB workflow with inter-LOB transfers.
+Case management for a finance org. Multi-LOB workflow with inter-LOB transfers.
 
 ## Quickstart
 ```
