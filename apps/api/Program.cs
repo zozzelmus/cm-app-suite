@@ -1,4 +1,5 @@
 using Conduct.Api.Endpoints;
+using Conduct.Api.Hosted;
 using Conduct.Infrastructure;
 using Conduct.Infrastructure.Cases.Intake;
 using Conduct.Infrastructure.Multitenancy;
@@ -28,12 +29,24 @@ builder.AddKafkaProducer<string, string>("kafka", settings =>
     settings.Config.CompressionType = CompressionType.Zstd;
 });
 
+// Consumer: manual offset commit (we commit only after IntakeProcessor finalises the case).
+builder.AddKafkaConsumer<string, string>("kafka", settings =>
+{
+    settings.Config.GroupId = "conduct.api.intake";
+    settings.Config.AutoOffsetReset = AutoOffsetReset.Earliest;
+    settings.Config.EnableAutoCommit = false;
+    settings.Config.SessionTimeoutMs = 30_000;
+});
+
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<Seeder>();
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection("Outbox"));
 builder.Services.AddScoped<OutboxRelay>();
 builder.Services.AddHostedService<OutboxRelayHost>();
 builder.Services.AddScoped<IntakeService>();
+builder.Services.AddScoped<IntakeProcessor>();
+builder.Services.AddScoped<CaseAllocator>();
+builder.Services.AddHostedService<CaseIntakeConsumerHost>();
 
 var app = builder.Build();
 

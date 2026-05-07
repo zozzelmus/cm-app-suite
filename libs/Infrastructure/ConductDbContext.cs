@@ -19,6 +19,7 @@ public class ConductDbContext(DbContextOptions<ConductDbContext> options) : DbCo
     public DbSet<CaseNote> CaseNotes => Set<CaseNote>();
     public DbSet<CaseType> CaseTypes => Set<CaseType>();
     public DbSet<CaseIntake> CaseIntakes => Set<CaseIntake>();
+    public DbSet<CaseNumberSeq> CaseNumberSeqs => Set<CaseNumberSeq>();
 
     // LOBs
     public DbSet<Lob> Lobs => Set<Lob>();
@@ -102,6 +103,14 @@ public class ConductDbContext(DbContextOptions<ConductDbContext> options) : DbCo
             e.Property(x => x.ErrorsJson).HasColumnType("jsonb");
             e.HasIndex(x => new { x.TenantId, x.Status });
             e.HasIndex(x => x.CaseId);
+        });
+
+        b.Entity<CaseNumberSeq>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.LobShortCode).HasMaxLength(32);
+            // Natural key supports the ON CONFLICT upsert in CaseAllocator.
+            e.HasIndex(x => new { x.TenantId, x.Year, x.LobShortCode }).IsUnique();
         });
 
         // -------- LOBs (adjacency tree) --------
