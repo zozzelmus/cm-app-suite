@@ -64,6 +64,7 @@ app.MapGet("/api/_meta/echo", () => Results.Ok(new
 }));
 
 app.MapIntakeEndpoints();
+app.MapIntakeStatusEndpoints();
 
 // Dev-only: apply migrations and run idempotent seed on startup.
 // Production migrations run via `azd hook predeploy` or a one-shot job; seeding production
