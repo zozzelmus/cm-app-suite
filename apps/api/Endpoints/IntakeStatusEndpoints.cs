@@ -9,7 +9,9 @@ public sealed record IntakeStatusResponse(
     string Status,
     Guid? CaseId,
     string? CaseNumber,
-    string? Errors);
+    // Public-safe summary only — see project_audit_log.md / user-persona review.
+    bool HasErrors,
+    string? ErrorSummary);
 
 public static class IntakeStatusEndpoints
 {
@@ -32,12 +34,23 @@ public static class IntakeStatusEndpoints
             }
 
             ctx.Response.Headers.CacheControl = "no-store";
+
+            // Don't leak internal failure detail (e.g. "CaseType '...' not found at process
+            // time") to anonymous callers. Surface a stable boolean + a generic summary
+            // string. Privileged "audit-view" caller can fetch the raw ErrorsJson via a
+            // future admin endpoint.
+            var hasErrors = !string.IsNullOrEmpty(receipt.ErrorsJson);
+            var errorSummary = hasErrors
+                ? "Intake processing failed. Contact support with the receipt id."
+                : null;
+
             return Results.Ok(new IntakeStatusResponse(
                 receipt.Id,
                 receipt.Status.ToString(),
                 receipt.CaseId,
                 receipt.CaseNumber,
-                receipt.ErrorsJson));
+                hasErrors,
+                errorSummary));
         }).WithTags("Intake");
 
         return app;

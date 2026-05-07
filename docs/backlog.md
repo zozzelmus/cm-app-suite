@@ -2,6 +2,48 @@
 
 Items captured from grilling sessions and incremental discovery. Not prioritized yet; this is a parking lot, not a roadmap.
 
+## 🔴 Production blockers (architect + user-persona review, F8 close-out)
+These items independently fail a basic infosec / compliance review. None should block the demo, but each is a hard gate for any regulated-bank prod environment. Tracked here so they aren't lost.
+
+- **Wire request-derived tenant resolution.** `TenantContextMiddleware` currently hard-codes `SeedConstants.DemoTenantId`. Read `tenant_id` from a validated JWT claim (Keycloak claim mapper) and 401 if absent. **Until this lands the entire RLS story is theatre.**
+- **Wire authorization at the API edge.** No `RequireAuthorization()` anywhere; `/api/cases*` is reachable anonymously through the BFF. At minimum: BFF `[Authorize]` on the YARP forwarder for `/api/{**catch-all}`, API endpoints check the `conduct:use` scope + a permission key per endpoint via `IAuthorizationService.HasPermissionAsync(...)`. Add an integration test asserting 401 for un-authed `POST /api/cases`. (Note: Playwright E2E will need a dev-only `_test/login-as` route to bypass OIDC.)
+- **Sign or HMAC the Kafka command envelope.** `CaseIntakeConsumerHost` trusts the raw `tenant-id` header. A poisoned/spoofed message can flip ambient tenant under the consumer scope. Producer-side signature over `(tenantId, receiptId, caseTypeKey)` verified before `BeginScope` closes the spoof window.
+- **Encrypt-at-rest PII columns.** `CaseParty.DataJson`, `Reporter.ContactEmail`/`ContactPhone`, `OutboxMessage.PayloadJson` are plaintext. Regulatory baseline (CLAUDE.md) says "encrypt at rest, PII tagging" — schema currently has zero PII tags or column-level encryption. Use pgcrypto + per-tenant DEK from Azure Key Vault; tag column on each entity.
+- **Replace RLS-exempt `Outbox` with privileged-role read + payload encryption.** Today's RLS exemption (commit `5c6e99c`) makes the relay the one process that can read every tenant's command payloads. Better: keep RLS on `Outbox`, give the relay a dedicated Postgres role with `BYPASSRLS` (Postgres feature designed for this), and envelope-encrypt the payload so even a compromised relay role can't read across tenants.
+- **`AuditEvent` INSERT-only role grant migration.** Project_audit_log.md is the policy; no migration enforces it. Test fixture uses superuser so the policy is uncovered. Ship a `CreateAppRuntimeRole` migration that grants only `INSERT` on `AuditEvents`, run integration tests under that role.
+- **Quarantine table for outbox poison rows.** `OutboxRelay`'s `MaxAttempts` silent-skip leaves stuck rows invisible to ops. Move to `outbox_dead` + alerting metric.
+- **Model-snapshot diff CI check.** Codify the F4-discovered lesson: a CI rule that fails the build when a new entity has `TenantId` but no matching `EnableRowLevelSecurity` migration. Without this the rule will regress.
+- **Add EF `HasQueryFilter(x => x.TenantId == ambient)`** alongside RLS so query plans get the column-equality predicate (perf + index hints). Layer 2 of the "belt + suspenders" data-access design that wasn't shipped.
+
+## 🟡 UX gaps surfaced by user-persona review (F8 close-out)
+- **No way to choose LOB on intake form.** Hardcoded `INV-APAC` in `IntakePage.tsx`. Add a LobPicker control that fetches the visible LOB tree (filtered by user's accessible LOBs once RBAC is wired).
+- **No Title input on intake form.** Currently derived from first 80 chars of summary. Add explicit Title field above the schema-driven body.
+- **No reporter / subject / witness inputs on intake form.** API supports them; form doesn't expose them. Without these the intake fidelity is "free-text summary".
+- **CasesPage is a placeholder.** Need at minimum a list view + filter so a Compliance Officer can see what was filed. The closed-loop is currently invisible.
+- **PII detection / sensitivity tagging on intake.** Regex/PII scanner pass on `summary` + party fields before persist; auto-tag `Confidential` if hit.
+- **Forward `traceparent` / correlation id from intake into AuditEvent.Context** so an audit row can be tied back to the originating HTTP trace.
+- **Anonymous reporter follow-up token.** Anonymous reporters need a way to add info / check status without creating an account.
+- **Schema for occurrence timezone.** UI converts datetime-local to ISO using browser TZ — no record of what TZ the reporter actually meant. Material for cross-jurisdiction cases.
+
+## 🟡 Architecture trades for next 6 months (architect review)
+- **Outbox-tenancy:** encrypt-at-rest vs per-tenant relay vs in-database queue (e.g. pg-boss/listen-notify). Current RLS-exempt outbox won't survive a regulator who reads the schema. Recommendation: per-tenant payload envelope encryption keyed off Azure Key Vault, decrypt only inside tenant-scoped consumer.
+- **CaseType god-schema vs explicit subtype tables.** JSON-Schema-on-`CaseType` will scale to ~20 types if (a) `FieldsSchema` is referenced via `$ref` to a shared registry, (b) `schemaVersion` is per-CaseType-row not per-instance-only, (c) lifecycle validation gets a real state-machine engine (Stateless / Workflow library). Without those three, dozens of types degenerate into copy-paste schemas.
+- **Sync vs async intake on the public-facing channel.** "Sync fallback" reveals that for human-driven UI, the 202-only contract has no UX value. Keep async for high-volume machine intakes (surveillance, hotline) but offer a sync-completing endpoint variant (`POST /api/cases?wait=true`) for the form path.
+
+## 🟡 Decisions to reverse if starting today (architect review)
+- **`Outbox` RLS exemption.** Pragmatic under time pressure but a regulator finding waiting to happen.
+- **`ITenantContext` as `AsyncLocal` singleton.** Fragile in long-lived background workers; a scoped `ITenantScopeFactory` would be more debuggable.
+- **Hand-rolled JSON-Schema → Zod via `new Function`.** Fine today (server-controlled input) but ships an `eval` to every browser. Precompiled per-CaseType bundle (build-time) eliminates the eval.
+- **Confluent confluent-local Kafka image for dev.** The advertised-listener port-drift is the bug that motivated the sync-fallback band-aid. RedPanda's single-binary, no-ZK, stable-port story removes the entire class of bug. Don't change prod (Event Hubs); change dev.
+
+## 🟢 Bugs surfaced + already fixed at F8 close
+- ~~`Intake:SyncProcess` defaulted `true` globally — would double-process every intake in prod.~~ **FIXED:** default now `IHostEnvironment.IsDevelopment()`-conditional.
+- ~~`POST /api/cases` accepted empty `title` and returned 202.~~ **FIXED:** validation added, returns 400 `title_required` / `title_too_long`.
+- ~~`CaseAllocator.Render` accepted any seq format spec including format-string-shaped inputs.~~ **FIXED:** whitelist (digits or `D` + digits) added.
+- ~~`IntakeStatusEndpoints` returned raw `ErrorsJson` to anonymous callers, leaking internal failure detail.~~ **FIXED:** replaced with `HasErrors` boolean + generic `ErrorSummary`.
+
+
+
 ## Identity & RBAC
 - HR system sync (Workday / SuccessFactors via SCIM 2.0 or REST)
 - Keycloak admin event webhook → User.IsActive sync (near-real-time deprovisioning)

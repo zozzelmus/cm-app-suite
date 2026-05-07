@@ -27,11 +27,19 @@ public static class IntakeEndpoints
             if (outcome.IsAccepted && outcome.ReceiptId is { } receiptId)
             {
                 // Optional sync-fallback path: the canonical async pipeline routes via Kafka
-                // (outbox → relay → consumer). When `Intake:SyncProcess=true` (default true in
-                // Dev environment) we ALSO invoke the processor inline so the receipt finishes
-                // in-request and the demo flow doesn't depend on Kafka availability. The
-                // outbox row is still written so the prod async pipeline stays intact.
-                if (config.GetValue("Intake:SyncProcess", true))
+                // (outbox → relay → consumer). When `Intake:SyncProcess=true` we ALSO invoke
+                // the processor inline so the receipt finishes in-request — useful for the
+                // dev demo while the Aspire-Kafka port-drift issue is open.
+                //
+                // SAFETY: default to true ONLY in Development. Architect-review flagged the
+                // global `true` default as a "ticking trap" — in Production it would double-
+                // process every intake (once inline + once via the consumer once Kafka
+                // recovers), defeating async load-shedding. Idempotency saves correctness
+                // but ops cost is real. Set `Intake:SyncProcess=true` explicitly per env.
+                var defaultSyncProcess = ctx.RequestServices
+                    .GetRequiredService<IHostEnvironment>()
+                    .IsDevelopment();
+                if (config.GetValue("Intake:SyncProcess", defaultSyncProcess))
                 {
                     await TryProcessInlineAsync(processor, db, receiptId, ct);
                 }
