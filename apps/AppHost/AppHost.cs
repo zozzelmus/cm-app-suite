@@ -20,14 +20,23 @@ var conductDb = postgres.AddDatabase("conductdb");
 var kafka = builder.AddKafka("kafka")
     .WithKafkaUI(); // browser UI for inspecting topics during dev
 
-// Keycloak — dev mode w/ realm import from infra/keycloak/realm
+// Keycloak — dev mode w/ realm import from infra/keycloak/realm.
+//
+// EPHEMERAL on purpose: `--import-realm` only imports if the realm doesn't already exist,
+// so a Persistent container locks devs into whatever realm.json shipped on FIRST run and
+// silently ignores subsequent edits to the file (e.g. claim mappers, redirect URIs added
+// to support new BFF ports). Treating Keycloak as throwaway in dev keeps the file the
+// source of truth — every AppHost restart = fresh realm.
+//
+// Trade-off: lose admin-UI tweaks made between runs. Acceptable because admin tweaks should
+// be folded back into realm.json anyway (otherwise the next dev who clones the repo gets a
+// different Keycloak than yours). Production realms are managed separately via azd.
 var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26.3")
     .WithArgs("start-dev", "--import-realm")
     .WithEnvironment("KEYCLOAK_ADMIN", "admin")
     .WithEnvironment("KEYCLOAK_ADMIN_PASSWORD", "admin")
     .WithBindMount("../../infra/keycloak/realm", "/opt/keycloak/data/import")
-    .WithHttpEndpoint(port: 8088, targetPort: 8080, name: "http")
-    .WithLifetime(ContainerLifetime.Persistent);
+    .WithHttpEndpoint(port: 8088, targetPort: 8080, name: "http");
 
 var api = builder.AddProject<Projects.Conduct_Api>("api")
     .WithReference(conductDb)

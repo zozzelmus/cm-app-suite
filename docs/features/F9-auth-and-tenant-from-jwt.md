@@ -17,7 +17,7 @@ Memory references:
      - Demo user has `id = SeedConstants.DemoUserKeycloakSub` so JWT `sub` matches the seeded `User.KeycloakSub`.
      - Demo user has `attributes.tenant_id = ["00000000-0000-0000-0000-000000000001"]` (matches `SeedConstants.DemoTenantId`).
      - A user-attribute protocol mapper on the `conduct:use` scope (or `conduct-bff` client) writes the `tenant_id` user attribute into the access token + ID token claim `tenant_id`.
-     - `redirectUris` and `post.logout.redirect.uris` use a wildcard for localhost ports so the launch-profile drift no longer breaks login.
+     - `redirectUris` and `post.logout.redirect.uris` enumerate the BFF launch-profile ports explicitly (`http://localhost:5010` + `https://localhost:7090`). Keycloak only allows wildcards in the path component, not the port — first-pass attempt at `http://localhost:*/signin-oidc` was rejected and rolled back. Add a port to both lists if you change the BFF launchSettings.
      - `directAccessGrantsEnabled = true` on `conduct-bff` so the dev-only test-login route can perform a Resource Owner Password Credentials Grant. Production realm import will set this back to `false`; documented inline.
 
 2. **AC2 — API JWT bearer + fallback policy.**
