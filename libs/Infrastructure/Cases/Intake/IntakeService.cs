@@ -59,6 +59,23 @@ public sealed class IntakeService(
                 $"Unknown LOB '{request.LobShortCode}'"));
         }
 
+        // Title gate: regulator narratives, dashboards, list views all key on Title.
+        // Empty title generates "untitled" rows that are operationally useless and the
+        // user-persona review flagged this as a "non-starter" finding.
+        var trimmedTitle = (request.Title ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmedTitle))
+        {
+            return new IntakeOutcome(false, null, new IntakeError(
+                IntakeErrorKind.ValidationFailed, "title_required",
+                "Title is required"));
+        }
+        if (trimmedTitle.Length > 512)
+        {
+            return new IntakeOutcome(false, null, new IntakeError(
+                IntakeErrorKind.ValidationFailed, "title_too_long",
+                "Title cannot exceed 512 characters"));
+        }
+
         // Validate Case.Data against CaseType.FieldsSchemaJson, then validate every party's
         // role-specific Data payload against CaseType.PartyDataSchemasJson[role].
         var fieldErrors = new List<IntakeFieldError>();

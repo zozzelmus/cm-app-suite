@@ -53,15 +53,20 @@ public sealed class CaseAllocator(ConductDbContext db)
         return new AllocatedNumber(allocated, caseNumber);
     }
 
-    // Tiny template renderer. Supports {year}, {lobCode}, {seq[:fmt]}.
+    // Tiny template renderer. Supports ONLY {year}, {lobCode}, {seq[:fmt]}.
     // Anything else passes through unchanged.
+    //
+    // Seq format spec is whitelisted to digits + zero-padding patterns (e.g. "000000",
+    // "D6"). User-persona reviewer flagged that admin-editable templates could otherwise
+    // accept format-specifier shapes like {seq:000;X;X} which open injection / output-
+    // shaping risks downstream. Whitelist is a closed-set guard.
     internal static string Render(string template, int year, string lobShortCode, long seq)
     {
         var s = template;
         s = s.Replace("{year}", year.ToString());
         s = s.Replace("{lobCode}", lobShortCode);
 
-        // {seq:000000} or {seq}
+        // {seq:<fmt>} or {seq}
         var i = 0;
         while ((i = s.IndexOf("{seq", i, StringComparison.Ordinal)) >= 0)
         {
@@ -77,11 +82,27 @@ public sealed class CaseAllocator(ConductDbContext db)
             {
                 var colon = token.IndexOf(':');
                 var spec = colon > 0 ? token[(colon + 1)..^1] : "";
+                if (!IsAllowedSeqFormat(spec))
+                {
+                    throw new InvalidOperationException(
+                        $"CaseType.NumberFormat seq spec '{spec}' is not allowed; allowed: digits or 'D' + digits");
+                }
                 fmt = seq.ToString(spec);
             }
             s = s.Remove(i, token.Length).Insert(i, fmt);
             i += fmt.Length;
         }
         return s;
+    }
+
+    // Allow only zero-padded numeric specs ("000000") and decimal specs ("D6"). No
+    // composites, no sections, no escape chars.
+    private static bool IsAllowedSeqFormat(string spec)
+    {
+        if (string.IsNullOrEmpty(spec)) return true;
+        if (spec.All(char.IsDigit)) return true;
+        if ((spec[0] == 'D' || spec[0] == 'd') &&
+            (spec.Length == 1 || spec.AsSpan(1).ToArray().All(char.IsDigit))) return true;
+        return false;
     }
 }
