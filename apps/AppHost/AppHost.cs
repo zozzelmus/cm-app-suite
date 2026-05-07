@@ -10,9 +10,14 @@ var postgres = builder.AddPostgres("postgres")
 var conductDb = postgres.AddDatabase("conductdb");
 
 // Kafka — bank-standard messaging; local container in dev, Azure Event Hubs (Kafka API) in prod
+//
+// EPHEMERAL (no persistence) on purpose: the Confluent dev image bakes
+// `advertised.listeners` into broker config on first launch using the host port Aspire
+// picked at THAT moment. On a subsequent run, if Docker remaps the container to a
+// different host port, the advertised listener is stale and clients fail to connect.
+// Letting the container be ephemeral forces fresh broker config each AppHost run.
+// Trade-off: lose topic data across restarts — fine for dev/POC.
 var kafka = builder.AddKafka("kafka")
-    .WithLifetime(ContainerLifetime.Persistent)
-    .WithDataVolume("conduct-kafka-data")
     .WithKafkaUI(); // browser UI for inspecting topics during dev
 
 // Keycloak — dev mode w/ realm import from infra/keycloak/realm
