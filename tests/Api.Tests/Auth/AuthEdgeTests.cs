@@ -4,7 +4,8 @@ using Conduct.Infrastructure.Seed;
 
 namespace Conduct.Api.Tests.Auth;
 
-public sealed class AuthEdgeTests : IClassFixture<AuthEdgeFactory>
+[Collection("auth-edge")]
+public sealed class AuthEdgeTests
 {
     private readonly AuthEdgeFactory _factory;
 

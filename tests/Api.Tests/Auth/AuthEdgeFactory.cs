@@ -24,6 +24,9 @@ namespace Conduct.Api.Tests.Auth;
 //      ConfigureAppConfiguration delta is applied to the WebApplication's builder.
 //   3. Removes hosted services so the test host doesn't open Kafka sockets in the background.
 //   4. Replaces JwtBearer with TestAuthHandler — header-driven principal construction.
+[CollectionDefinition("auth-edge")]
+public class AuthEdgeCollection : ICollectionFixture<AuthEdgeFactory> { }
+
 public sealed class AuthEdgeFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _pg = new PostgreSqlBuilder("pgvector/pgvector:pg17")

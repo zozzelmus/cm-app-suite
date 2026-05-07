@@ -11,7 +11,8 @@ namespace Conduct.Api.Tests.Authz;
 // Endpoint-level integration tests for F10's per-endpoint permission gate. Reuses the F9
 // AuthEdgeFactory (which now seeds the demo data) so the demo user has the seeded
 // Investigator/INV-APAC assignment.
-public sealed class PermissionEdgeTests : IClassFixture<AuthEdgeFactory>
+[Collection("auth-edge")]
+public sealed class PermissionEdgeTests
 {
     private readonly AuthEdgeFactory _factory;
 
