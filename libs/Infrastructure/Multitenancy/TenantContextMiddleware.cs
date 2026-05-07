@@ -7,16 +7,16 @@ namespace Conduct.Infrastructure.Multitenancy;
 // Resolves the current tenant for a request from the authenticated principal's `tenant_id`
 // claim and pushes it into the ambient ITenantContext before any DbContext is touched.
 //
-// Fails closed: if no claim is present or it can't be parsed as a Guid, returns 401 with a
-// stable error code. The downstream pipeline never runs without a resolved tenant — so RLS
-// policies (which deny all rows when `app.tenant_id` is unset) can never accidentally serve
-// a request under no tenant.
+// Pipeline contract (as of F10):
+//   UseAuthentication → UseTenantContext → UserMirrorMiddleware → UseAuthorization → endpoint
 //
-// Pipeline placement: this middleware runs AFTER UseAuthorization, so endpoint routing has
-// resolved by the time we look at metadata. Endpoints that opt into anonymous via
-// `.AllowAnonymous()` (health probes, dev forwarders, OpenAPI) get a free pass — single
-// source of truth for "this endpoint is public" lives on the endpoint itself, not in a
-// duplicate path-prefix list maintained here.
+// We run BEFORE UseAuthorization so that ITenantContext is set before the JIT user mirror
+// (and its DbContext access) executes. Two consequences:
+//   * AllowAnonymous endpoints pass through here (single source of truth via metadata).
+//   * Unauthenticated requests to auth-required endpoints also pass through — UseAuthorization
+//     downstream issues the 401 via FallbackPolicy. This middleware only fail-closes when
+//     the user IS authenticated but the JWT lacks a usable `tenant_id` claim, which is the
+//     actual concern this middleware speaks to.
 public sealed class TenantContextMiddleware(RequestDelegate next)
 {
     public const string TenantClaimType = "tenant_id";
@@ -25,6 +25,13 @@ public sealed class TenantContextMiddleware(RequestDelegate next)
     {
         if (ctx.GetEndpoint()?.Metadata.GetMetadata<IAllowAnonymous>() is not null)
         {
+            await next(ctx);
+            return;
+        }
+
+        if (ctx.User.Identity?.IsAuthenticated != true)
+        {
+            // Not our concern; UseAuthorization's FallbackPolicy issues the standard 401.
             await next(ctx);
             return;
         }

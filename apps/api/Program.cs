@@ -1,12 +1,16 @@
 using Conduct.Api.Auth;
+using Conduct.Api.Auth.Authorization;
 using Conduct.Api.Endpoints;
 using Conduct.Api.Hosted;
 using Conduct.Infrastructure;
+using Conduct.Infrastructure.Authorization;
 using Conduct.Infrastructure.Cases.Intake;
+using Conduct.Infrastructure.Identity;
 using Conduct.Infrastructure.Multitenancy;
 using Conduct.Infrastructure.Outbox;
 using Conduct.Infrastructure.Seed;
 using Confluent.Kafka;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,6 +46,12 @@ builder.AddKafkaConsumer<string, string>("kafka", settings =>
 // JWT bearer at the edge + FallbackPolicy = require authenticated user. See AuthSetup.cs.
 builder.Services.AddConductAuth(builder.Configuration);
 
+// App-DB-driven authorization: scope-aware permission resolution + lazy policy provider so
+// `[RequiresPermission(Permissions.X)]` synthesises a policy on first reference.
+builder.Services.AddScoped<IConductAuthorization, ConductAuthorization>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, ConductPermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, ConductPermissionHandler>();
+
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<Seeder>();
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection("Outbox"));
@@ -61,16 +71,16 @@ app.MapOpenApi().AllowAnonymous();
 
 // Pipeline order:
 //   1. UseAuthentication — populates HttpContext.User from the bearer token.
-//   2. UseAuthorization  — enforces FallbackPolicy + per-endpoint policies; 401/403 short-circuits.
-//   3. UseTenantContext  — reads `tenant_id` claim from the (now-authenticated) principal,
-//                          starts the ambient scope, fail-closes 401 if absent.
-//
-// TenantContext sits BETWEEN authorization and endpoint dispatch on purpose: by then the
-// authz layer has already vetted that the request is allowed to be here, so 401 here is
-// purely about a malformed token (missing tenant_id) rather than a missing session.
+//   2. UseTenantContext  — reads tenant_id claim (401 tenant_unknown if missing).
+//   3. UseUserMirror     — JIT-creates the app User row for the (tenant, sub) pair, 403s
+//                          if deactivated, appends `app_user_id` claim.
+//   4. UseAuthorization  — enforces FallbackPolicy + per-endpoint policies. By this point
+//                          app_user_id is set, so ConductPermissionHandler can answer
+//                          `[RequiresPermission(...)]` without re-querying.
 app.UseAuthentication();
-app.UseAuthorization();
 app.UseTenantContext();
+app.UseUserMirror();
+app.UseAuthorization();
 
 app.MapGet("/api/_meta/echo", () => Results.Ok(new
 {

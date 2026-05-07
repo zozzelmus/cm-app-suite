@@ -43,7 +43,9 @@ public sealed class AuthEdgeFactory : WebApplicationFactory<Program>, IAsyncLife
         // doesn't parallelise the auth-edge fixture w/ another fixture that reads these keys.
         Environment.SetEnvironmentVariable("ConnectionStrings__conductdb", _pg.GetConnectionString());
         Environment.SetEnvironmentVariable("ConnectionStrings__kafka", "localhost:9999");
-        Environment.SetEnvironmentVariable("Seed__Enabled", "false");
+        // Seed enabled so F10 permission tests can use the seeded demo user + Investigator
+        // assignment on INV-APAC. F9 tests don't care; the extra ~150ms is fine.
+        Environment.SetEnvironmentVariable("Seed__Enabled", "true");
 
         // Force eager host build so any startup error surfaces inside InitializeAsync rather
         // than the first test call.
