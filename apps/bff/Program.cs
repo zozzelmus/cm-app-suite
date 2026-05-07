@@ -1,6 +1,8 @@
+using Conduct.Bff.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Yarp.ReverseProxy.Configuration;
 
@@ -12,6 +14,12 @@ var authority = builder.Configuration["Auth:Authority"] ?? "http://localhost:808
 var clientId = builder.Configuration["Auth:ClientId"] ?? "conduct-bff";
 var clientSecret = builder.Configuration["Auth:ClientSecret"] ?? "dev-secret";
 
+// __Host- cookies require Secure + no Domain + path "/", which only works over HTTPS. In
+// dev (Aspire's http profile is on plain http://localhost:5010) the browser silently drops
+// __Host- cookies, breaking the cookie session. Use a non-prefixed name + SameAsRequest
+// secure policy in dev; keep __Host-conduct + Secure=Always for non-dev.
+var isDev = builder.Environment.IsDevelopment();
+
 builder.Services.AddAuthentication(o =>
     {
         o.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -19,10 +27,10 @@ builder.Services.AddAuthentication(o =>
     })
     .AddCookie(o =>
     {
-        o.Cookie.Name = "__Host-conduct";
+        o.Cookie.Name = isDev ? "conduct-session" : "__Host-conduct";
         o.Cookie.HttpOnly = true;
-        o.Cookie.SameSite = SameSiteMode.Strict;
-        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        o.Cookie.SameSite = isDev ? SameSiteMode.Lax : SameSiteMode.Strict;
+        o.Cookie.SecurePolicy = isDev ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
         o.SlidingExpiration = true;
         o.ExpireTimeSpan = TimeSpan.FromHours(8);
     })
@@ -40,6 +48,8 @@ builder.Services.AddAuthentication(o =>
         o.Scope.Add("openid");
         o.Scope.Add("profile");
         o.Scope.Add("email");
+        o.Scope.Add("conduct:use");
+        o.MapInboundClaims = false; // preserve `sub`, `tenant_id`, `preferred_username` verbatim
         o.TokenValidationParameters = new TokenValidationParameters
         {
             NameClaimType = "preferred_username",
@@ -47,8 +57,16 @@ builder.Services.AddAuthentication(o =>
         };
     });
 
-builder.Services.AddAuthorization();
+// Default policy = require authenticated user. The api/{**catch-all} route opts in via
+// AuthorizationPolicy = "default" below — un-authed callers get the OIDC challenge.
+builder.Services.AddAuthorization(o =>
+{
+    o.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 builder.Services.AddAntiforgery(o => o.HeaderName = "X-CSRF");
+builder.Services.AddHttpClient(); // for the dev test-login flow
 
 builder.Services.AddReverseProxy()
     .LoadFromMemory(
@@ -58,6 +76,7 @@ builder.Services.AddReverseProxy()
             {
                 RouteId = "api",
                 ClusterId = "api",
+                AuthorizationPolicy = "default",
                 Match = new RouteMatch { Path = "/api/{**catch-all}" }
             }
         ],
@@ -72,7 +91,8 @@ builder.Services.AddReverseProxy()
                 }
             }
         ])
-    .AddServiceDiscoveryDestinationResolver();
+    .AddServiceDiscoveryDestinationResolver()
+    .AddTransforms<AccessTokenTransformProvider>();
 
 var app = builder.Build();
 
@@ -88,17 +108,19 @@ app.MapGet("/bff/user", (HttpContext ctx) =>
             name = ctx.User.Identity.Name,
             claims = ctx.User.Claims.Select(c => new { c.Type, c.Value })
         })
-        : Results.Unauthorized());
+        : Results.Unauthorized()).AllowAnonymous();
 
 app.MapGet("/bff/login", (string? returnUrl) =>
     Results.Challenge(
         new AuthenticationProperties { RedirectUri = returnUrl ?? "/" },
-        [OpenIdConnectDefaults.AuthenticationScheme]));
+        [OpenIdConnectDefaults.AuthenticationScheme])).AllowAnonymous();
 
 app.MapPost("/bff/logout", () =>
     Results.SignOut(
         new AuthenticationProperties { RedirectUri = "/" },
-        [CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme]));
+        [CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme])).AllowAnonymous();
+
+app.MapTestLoginIfEnabled();
 
 app.MapReverseProxy();
 
@@ -111,7 +133,7 @@ if (app.Environment.IsDevelopment())
     var webUrl = app.Configuration["services:web:http:0"]
               ?? builder.Configuration["services:web:http:0"]
               ?? "http://localhost:5173";
-    app.MapForwarder("/{**catch-all}", webUrl);
+    app.MapForwarder("/{**catch-all}", webUrl).AllowAnonymous();
 }
 else
 {

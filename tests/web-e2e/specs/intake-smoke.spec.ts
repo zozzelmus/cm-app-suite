@@ -7,9 +7,10 @@ import { test, expect } from '@playwright/test'
 //   4. Poll GET /api/cases/intake/{receiptId} until Completed (F6)
 //   5. Confirm CaseId + CaseNumber populated (proves F3 outbox relay + F5 consumer ran)
 //
-// Auth in this flow is BYPASS-able: the BFF doesn't [Authorize] the proxied API path
-// in the current POC, and the API resolves tenant from the demo TenantContext middleware.
-// When real OIDC enforcement lands, swap in a `_test/login-as` route or bypass.
+// Auth: a globalSetup hits /bff/_test/login-as once before the suite and saves the resulting
+// session cookie via storageState (see playwright.config.ts). Each spec inherits that cookie,
+// so requests to /api/* carry the BFF cookie and YARP forwards a real Keycloak access token
+// to the API. Without the cookie the API would 401 (F9: auth at the API edge).
 
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:5010'
 

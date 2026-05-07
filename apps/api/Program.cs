@@ -1,3 +1,4 @@
+using Conduct.Api.Auth;
 using Conduct.Api.Endpoints;
 using Conduct.Api.Hosted;
 using Conduct.Infrastructure;
@@ -38,6 +39,9 @@ builder.AddKafkaConsumer<string, string>("kafka", settings =>
     settings.Config.SessionTimeoutMs = 30_000;
 });
 
+// JWT bearer at the edge + FallbackPolicy = require authenticated user. See AuthSetup.cs.
+builder.Services.AddConductAuth(builder.Configuration);
+
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<Seeder>();
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection("Outbox"));
@@ -51,9 +55,21 @@ builder.Services.AddHostedService<CaseIntakeConsumerHost>();
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
-app.MapOpenApi();
+// OpenAPI/Swagger metadata isn't user data — let it be reachable without auth in dev so the
+// /openapi.json link works. Production drops MapOpenApi entirely (or guards it).
+app.MapOpenApi().AllowAnonymous();
 
-// Resolve the active tenant for every request before any endpoint runs.
+// Pipeline order:
+//   1. UseAuthentication — populates HttpContext.User from the bearer token.
+//   2. UseAuthorization  — enforces FallbackPolicy + per-endpoint policies; 401/403 short-circuits.
+//   3. UseTenantContext  — reads `tenant_id` claim from the (now-authenticated) principal,
+//                          starts the ambient scope, fail-closes 401 if absent.
+//
+// TenantContext sits BETWEEN authorization and endpoint dispatch on purpose: by then the
+// authz layer has already vetted that the request is allowed to be here, so 401 here is
+// purely about a malformed token (missing tenant_id) rather than a missing session.
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseTenantContext();
 
 app.MapGet("/api/_meta/echo", () => Results.Ok(new
@@ -87,3 +103,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+// Expose the implicit Program class to test projects so WebApplicationFactory<Program> works.
+public partial class Program;

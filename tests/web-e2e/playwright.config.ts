@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import * as path from 'node:path'
 
 // Smoke flow runs against the live Aspire stack at the BFF entry URL.
 // Override BASE_URL via env if Aspire allocates a different port.
@@ -11,10 +12,12 @@ export default defineConfig({
     ['list'],
     ['html', { outputFolder: './artifacts/html-report', open: 'never' }],
   ],
+  globalSetup: './global-setup.ts',
   // Per user request: record video for every run (not just on failure) so the morning
   // review has visual proof of the smoke flow.
   use: {
     baseURL: BASE_URL,
+    storageState: path.resolve(__dirname, 'artifacts', 'auth-state.json'),
     trace: 'on',
     video: 'on',
     screenshot: 'only-on-failure',

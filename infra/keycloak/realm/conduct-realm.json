@@ -20,7 +20,23 @@
         "include.in.token.scope": "true",
         "display.on.consent.screen": "false",
         "consent.screen.text": ""
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant_id",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "conduct:admin-panel",
@@ -50,14 +66,17 @@
       "enabled": true,
       "publicClient": false,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "secret": "dev-secret",
-      "rootUrl": "https://localhost:7001",
-      "redirectUris": ["https://localhost:7001/signin-oidc", "http://localhost:5077/signin-oidc"],
+      "rootUrl": "http://localhost:5010",
+      "redirectUris": [
+        "http://localhost:*/signin-oidc",
+        "https://localhost:*/signin-oidc"
+      ],
       "webOrigins": ["+"],
       "attributes": {
-        "post.logout.redirect.uris": "+",
+        "post.logout.redirect.uris": "http://localhost:*##https://localhost:*",
         "pkce.code.challenge.method": "S256"
       },
       "defaultClientScopes": ["openid", "profile", "email", "conduct:use"],
@@ -66,12 +85,16 @@
   ],
   "users": [
     {
+      "id": "00000000-0000-0000-0000-000000000010",
       "username": "demo",
       "enabled": true,
       "email": "demo@conduct.local",
       "emailVerified": true,
       "firstName": "Demo",
       "lastName": "User",
+      "attributes": {
+        "tenant_id": ["00000000-0000-0000-0000-000000000001"]
+      },
       "credentials": [{ "type": "password", "value": "demo", "temporary": false }]
     }
   ]
