@@ -50,6 +50,16 @@ public sealed class IntakeService(
                 $"Unknown CaseType '{request.CaseTypeKey}'"));
         }
 
+        // Null guard: callers MUST resolve LobShortCode before reaching this layer
+        // (IntakeEndpoints does so via ICaseRoutingService). The wire DTO allows null so
+        // the SPA can omit it, but downstream CreateCaseCommand.LobShortCode is required —
+        // letting null through would NRE at serialize time or at the consumer's DB lookup.
+        if (string.IsNullOrWhiteSpace(request.LobShortCode))
+        {
+            return new IntakeOutcome(false, null, new IntakeError(
+                IntakeErrorKind.LobNotFound, "lob_not_found",
+                "LobShortCode is required but was not resolved"));
+        }
         var lob = await db.Lobs.AsNoTracking().SingleOrDefaultAsync(
             x => x.ShortCode == request.LobShortCode, ct);
         if (lob is null)
@@ -228,7 +238,8 @@ public sealed class IntakeService(
             ReceiptId = receiptId,
             TenantId = tenantId,
             CaseTypeKey = req.CaseTypeKey,
-            LobShortCode = req.LobShortCode,
+            // SubmitAsync rejects null/blank up front, so this is safe by construction.
+            LobShortCode = req.LobShortCode!,
             Title = req.Title,
             SchemaVersion = schemaVersion,
             DataJson = req.Data.ToJsonString(s_jsonOpts),

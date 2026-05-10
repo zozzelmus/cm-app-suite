@@ -1,3 +1,4 @@
+using Conduct.Api.Application.Routing;
 using Conduct.Api.Endpoints;
 using Conduct.Api.Hosted;
 using Conduct.Infrastructure;
@@ -46,6 +47,7 @@ builder.Services.AddHostedService<OutboxRelayHost>();
 builder.Services.AddScoped<IntakeService>();
 builder.Services.AddScoped<IntakeProcessor>();
 builder.Services.AddScoped<CaseAllocator>();
+builder.Services.AddScoped<ICaseRoutingService, DefaultCaseRoutingService>();
 builder.Services.AddHostedService<CaseIntakeConsumerHost>();
 
 var app = builder.Build();

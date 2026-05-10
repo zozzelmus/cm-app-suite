@@ -8,7 +8,7 @@ namespace Conduct.Api.Tests.Seed;
 public class SeederIdempotencyTests(PostgresFixture pg)
 {
     [Fact]
-    public async Task SeedAsync_RunOnce_PopulatesBaseLobsAndCaseTypeAndRolesAndDemoUser()
+    public async Task SeedAsync_RunOnce_PopulatesBaseLobsCaseTypeRolesAndTestUsers()
     {
         await using var db = await pg.CreateFreshDbAsync();
         var seeder = new Seeder(db);
@@ -19,9 +19,10 @@ public class SeederIdempotencyTests(PostgresFixture pg)
         (await db.Lobs.CountAsync()).Should().Be(9);
         (await db.CaseTypes.CountAsync(x => x.Key == SeedConstants.DefaultCaseTypeKey)).Should().Be(1);
         (await db.Roles.CountAsync(x => x.IsBuiltIn)).Should().Be(5);
-        (await db.Users.CountAsync(x => x.KeycloakSub == SeedConstants.DemoUserKeycloakSub)).Should().Be(1);
-        (await db.Parties.CountAsync()).Should().BeGreaterThanOrEqualTo(1);
-        (await db.EmployeeProfiles.CountAsync()).Should().BeGreaterThanOrEqualTo(1);
+        (await db.Users.CountAsync()).Should().Be(SeedConstants.TestUsers.Count);
+        (await db.Parties.CountAsync()).Should().Be(SeedConstants.TestUsers.Count);
+        (await db.EmployeeProfiles.CountAsync()).Should().Be(SeedConstants.TestUsers.Count);
+        (await db.Assignments.CountAsync()).Should().Be(SeedConstants.TestUsers.Count);
     }
 
     [Fact]
@@ -66,23 +67,44 @@ public class SeederIdempotencyTests(PostgresFixture pg)
     }
 
     [Fact]
-    public async Task SeedAsync_DemoUserAssignment_GrantsInvestigatorOnInvApac()
+    public async Task SeedAsync_InvApacInvestigator_HasLobScopedAssignment()
     {
         await using var db = await pg.CreateFreshDbAsync();
         var seeder = new Seeder(db);
 
         await seeder.SeedAsync();
 
-        var demoUser = await db.Users.SingleAsync(x => x.KeycloakSub == SeedConstants.DemoUserKeycloakSub);
+        var spec = SeedConstants.TestUsers.Single(u => u.Username == "inv-inv-apac");
+        var user = await db.Users.SingleAsync(x => x.KeycloakSub == spec.KeycloakSub);
         var investigatorRole = await db.Roles.SingleAsync(x => x.Name == SeedConstants.RoleInvestigator);
         var invApacLob = await db.Lobs.SingleAsync(x => x.ShortCode == SeedConstants.LobInvestigationsApac);
 
         var assignment = await db.Assignments.SingleAsync(a =>
-            a.SubjectId == demoUser.Id &&
+            a.SubjectId == user.Id &&
             a.RoleId == investigatorRole.Id &&
             a.ScopeId == invApacLob.Id);
 
         assignment.SubjectType.Should().Be(Conduct.Domain.Authorization.AssignmentSubjectType.User);
         assignment.ScopeType.Should().Be(Conduct.Domain.Authorization.AssignmentScopeType.Lob);
+    }
+
+    [Fact]
+    public async Task SeedAsync_SysAdmin_HasGlobalScopedAssignment()
+    {
+        await using var db = await pg.CreateFreshDbAsync();
+        var seeder = new Seeder(db);
+
+        await seeder.SeedAsync();
+
+        var spec = SeedConstants.TestUsers.Single(u => u.Username == "sysadmin");
+        var user = await db.Users.SingleAsync(x => x.KeycloakSub == spec.KeycloakSub);
+        var sysAdminRole = await db.Roles.SingleAsync(x => x.Name == SeedConstants.RoleSystemAdmin);
+
+        var assignment = await db.Assignments.SingleAsync(a =>
+            a.SubjectId == user.Id &&
+            a.RoleId == sysAdminRole.Id);
+
+        assignment.ScopeType.Should().Be(Conduct.Domain.Authorization.AssignmentScopeType.Global);
+        assignment.ScopeId.Should().BeNull();
     }
 }

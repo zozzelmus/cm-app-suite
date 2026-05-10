@@ -13,6 +13,40 @@
   "ssoSessionMaxLifespan": 28800,
   "clientScopes": [
     {
+      "name": "profile",
+      "description": "OpenID Connect built-in scope: profile",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [
+        { "name": "username", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper", "consentRequired": false, "config": { "userinfo.token.claim": "true", "user.attribute": "username", "id.token.claim": "true", "access.token.claim": "true", "claim.name": "preferred_username", "jsonType.label": "String" } },
+        { "name": "given name", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper", "consentRequired": false, "config": { "userinfo.token.claim": "true", "user.attribute": "firstName", "id.token.claim": "true", "access.token.claim": "true", "claim.name": "given_name", "jsonType.label": "String" } },
+        { "name": "family name", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper", "consentRequired": false, "config": { "userinfo.token.claim": "true", "user.attribute": "lastName", "id.token.claim": "true", "access.token.claim": "true", "claim.name": "family_name", "jsonType.label": "String" } },
+        { "name": "full name", "protocol": "openid-connect", "protocolMapper": "oidc-full-name-mapper", "consentRequired": false, "config": { "id.token.claim": "true", "access.token.claim": "true", "userinfo.token.claim": "true" } }
+      ]
+    },
+    {
+      "name": "email",
+      "description": "OpenID Connect built-in scope: email",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [
+        { "name": "email", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper", "consentRequired": false, "config": { "userinfo.token.claim": "true", "user.attribute": "email", "id.token.claim": "true", "access.token.claim": "true", "claim.name": "email", "jsonType.label": "String" } },
+        { "name": "email verified", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-property-mapper", "consentRequired": false, "config": { "userinfo.token.claim": "true", "user.attribute": "emailVerified", "id.token.claim": "true", "access.token.claim": "true", "claim.name": "email_verified", "jsonType.label": "boolean" } }
+      ]
+    },
+    {
+      "name": "roles",
+      "description": "OpenID Connect scope for realm/client roles",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "false", "display.on.consent.screen": "false" }
+    },
+    {
+      "name": "web-origins",
+      "description": "OpenID Connect scope for sending allowed web origins",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "false", "display.on.consent.screen": "false" }
+    },
+    {
       "name": "conduct:use",
       "description": "Entry-level access to the Conduct application",
       "protocol": "openid-connect",
@@ -50,11 +84,16 @@
       "enabled": true,
       "publicClient": false,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "secret": "dev-secret",
-      "rootUrl": "https://localhost:7001",
-      "redirectUris": ["https://localhost:7001/signin-oidc", "http://localhost:5077/signin-oidc"],
+      "rootUrl": "http://localhost:5010",
+      "redirectUris": [
+        "http://localhost:5010/signin-oidc",
+        "https://localhost:7090/signin-oidc",
+        "https://localhost:7001/signin-oidc",
+        "http://localhost:5077/signin-oidc"
+      ],
       "webOrigins": ["+"],
       "attributes": {
         "post.logout.redirect.uris": "+",
@@ -65,14 +104,24 @@
     }
   ],
   "users": [
-    {
-      "username": "demo",
-      "enabled": true,
-      "email": "demo@conduct.local",
-      "emailVerified": true,
-      "firstName": "Demo",
-      "lastName": "User",
-      "credentials": [{ "type": "password", "value": "demo", "temporary": false }]
-    }
+    { "username": "mgr-sui",       "id": "00000000-0000-0000-0000-000000000020", "enabled": true, "email": "mgr-sui@conduct.local",       "emailVerified": true, "firstName": "Mia",    "lastName": "Manager-SUI",         "credentials": [{ "type": "password", "value": "mgr-sui",       "temporary": false }] },
+    { "username": "inv-sui",       "id": "00000000-0000-0000-0000-000000000021", "enabled": true, "email": "inv-sui@conduct.local",       "emailVerified": true, "firstName": "Ian",    "lastName": "Investigator-SUI",    "credentials": [{ "type": "password", "value": "inv-sui",       "temporary": false }] },
+    { "username": "mgr-cmp",       "id": "00000000-0000-0000-0000-000000000022", "enabled": true, "email": "mgr-cmp@conduct.local",       "emailVerified": true, "firstName": "Mara",   "lastName": "Manager-CMP",         "credentials": [{ "type": "password", "value": "mgr-cmp",       "temporary": false }] },
+    { "username": "inv-cmp",       "id": "00000000-0000-0000-0000-000000000023", "enabled": true, "email": "inv-cmp@conduct.local",       "emailVerified": true, "firstName": "Igor",   "lastName": "Investigator-CMP",    "credentials": [{ "type": "password", "value": "inv-cmp",       "temporary": false }] },
+    { "username": "mgr-inv",       "id": "00000000-0000-0000-0000-000000000024", "enabled": true, "email": "mgr-inv@conduct.local",       "emailVerified": true, "firstName": "Mei",    "lastName": "Manager-INV",         "credentials": [{ "type": "password", "value": "mgr-inv",       "temporary": false }] },
+    { "username": "inv-inv",       "id": "00000000-0000-0000-0000-000000000025", "enabled": true, "email": "inv-inv@conduct.local",       "emailVerified": true, "firstName": "Ivo",    "lastName": "Investigator-INV",    "credentials": [{ "type": "password", "value": "inv-inv",       "temporary": false }] },
+    { "username": "mgr-inv-apac",  "id": "00000000-0000-0000-0000-000000000026", "enabled": true, "email": "mgr-inv-apac@conduct.local",  "emailVerified": true, "firstName": "Mina",   "lastName": "Manager-APAC",        "credentials": [{ "type": "password", "value": "mgr-inv-apac",  "temporary": false }] },
+    { "username": "inv-inv-apac",  "id": "00000000-0000-0000-0000-000000000027", "enabled": true, "email": "inv-inv-apac@conduct.local",  "emailVerified": true, "firstName": "Ines",   "lastName": "Investigator-APAC",   "credentials": [{ "type": "password", "value": "inv-inv-apac",  "temporary": false }] },
+    { "username": "mgr-inv-in",    "id": "00000000-0000-0000-0000-000000000028", "enabled": true, "email": "mgr-inv-in@conduct.local",    "emailVerified": true, "firstName": "Maya",   "lastName": "Manager-IN",          "credentials": [{ "type": "password", "value": "mgr-inv-in",    "temporary": false }] },
+    { "username": "inv-inv-in",    "id": "00000000-0000-0000-0000-000000000029", "enabled": true, "email": "inv-inv-in@conduct.local",    "emailVerified": true, "firstName": "Ishan",  "lastName": "Investigator-IN",     "credentials": [{ "type": "password", "value": "inv-inv-in",    "temporary": false }] },
+    { "username": "mgr-inv-ph",    "id": "00000000-0000-0000-0000-000000000030", "enabled": true, "email": "mgr-inv-ph@conduct.local",    "emailVerified": true, "firstName": "Marcos", "lastName": "Manager-PH",          "credentials": [{ "type": "password", "value": "mgr-inv-ph",    "temporary": false }] },
+    { "username": "inv-inv-ph",    "id": "00000000-0000-0000-0000-000000000031", "enabled": true, "email": "inv-inv-ph@conduct.local",    "emailVerified": true, "firstName": "Iris",   "lastName": "Investigator-PH",     "credentials": [{ "type": "password", "value": "inv-inv-ph",    "temporary": false }] },
+    { "username": "mgr-hr-er",     "id": "00000000-0000-0000-0000-000000000032", "enabled": true, "email": "mgr-hr-er@conduct.local",     "emailVerified": true, "firstName": "Marta",  "lastName": "Manager-HR-ER",       "credentials": [{ "type": "password", "value": "mgr-hr-er",     "temporary": false }] },
+    { "username": "inv-hr-er",     "id": "00000000-0000-0000-0000-000000000033", "enabled": true, "email": "inv-hr-er@conduct.local",     "emailVerified": true, "firstName": "Ilia",   "lastName": "Investigator-HR-ER",  "credentials": [{ "type": "password", "value": "inv-hr-er",     "temporary": false }] },
+    { "username": "mgr-leg",       "id": "00000000-0000-0000-0000-000000000034", "enabled": true, "email": "mgr-leg@conduct.local",       "emailVerified": true, "firstName": "Milo",   "lastName": "Manager-LEG",         "credentials": [{ "type": "password", "value": "mgr-leg",       "temporary": false }] },
+    { "username": "inv-leg",       "id": "00000000-0000-0000-0000-000000000035", "enabled": true, "email": "inv-leg@conduct.local",       "emailVerified": true, "firstName": "Iona",   "lastName": "Investigator-LEG",    "credentials": [{ "type": "password", "value": "inv-leg",       "temporary": false }] },
+    { "username": "mgr-ia",        "id": "00000000-0000-0000-0000-000000000036", "enabled": true, "email": "mgr-ia@conduct.local",        "emailVerified": true, "firstName": "Mila",   "lastName": "Manager-IA",          "credentials": [{ "type": "password", "value": "mgr-ia",        "temporary": false }] },
+    { "username": "inv-ia",        "id": "00000000-0000-0000-0000-000000000037", "enabled": true, "email": "inv-ia@conduct.local",        "emailVerified": true, "firstName": "Ilan",   "lastName": "Investigator-IA",     "credentials": [{ "type": "password", "value": "inv-ia",        "temporary": false }] },
+    { "username": "sysadmin",      "id": "00000000-0000-0000-0000-000000000038", "enabled": true, "email": "sysadmin@conduct.local",      "emailVerified": true, "firstName": "Sam",    "lastName": "System-Admin",        "credentials": [{ "type": "password", "value": "sysadmin",      "temporary": false }] }
   ]
 }

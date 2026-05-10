@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/lib/useAuth'
 import { cn } from '@/lib/utils'
+import { TestUserSwitcher } from '@/components/TestUserSwitcher'
 
 export function Layout() {
   const { user, loading, signIn, signOut } = useAuth()
@@ -31,6 +32,7 @@ export function Layout() {
           <Outlet />
         </div>
       </main>
+      <TestUserSwitcher />
     </div>
   )
 }

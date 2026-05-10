@@ -1,6 +1,8 @@
+using Conduct.Api.Application.Routing;
 using Conduct.Domain.Cases.Intake;
 using Conduct.Infrastructure;
 using Conduct.Infrastructure.Cases.Intake;
+using Conduct.Infrastructure.Multitenancy;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -18,12 +20,28 @@ public static class IntakeEndpoints
             IntakeRequest body,
             IntakeService service,
             IntakeProcessor processor,
+            ICaseRoutingService routing,
+            ITenantContext tenant,
             ConductDbContext db,
             IConfiguration config,
             HttpContext ctx,
             CancellationToken ct) =>
         {
-            var outcome = await service.SubmitAsync(body, ct);
+            // Resolve the initial LOB before handing off to the intake pipeline. If the
+            // client supplied one we still ask the routing service — the service decides
+            // whether to honor or override. Today it always returns SUI; future versions
+            // will respect explicit client values for admin-tool paths.
+            if (tenant.TenantId is null)
+            {
+                return Results.Json(
+                    new IntakeErrorResponse("tenant_unknown", "No tenant context resolved for request"),
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+            var decision = await routing.ResolveAsync(
+                new RoutingContext(tenant.TenantId.Value, body.CaseTypeKey, body), ct);
+            var routed = body with { LobShortCode = decision.LobShortCode };
+
+            var outcome = await service.SubmitAsync(routed, ct);
             if (outcome.IsAccepted && outcome.ReceiptId is { } receiptId)
             {
                 // Optional sync-fallback path: the canonical async pipeline routes via Kafka

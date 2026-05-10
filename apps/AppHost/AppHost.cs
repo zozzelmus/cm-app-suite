@@ -1,24 +1,23 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Postgres w/ pgvector image — single instance, separate logical DBs per service if/when needed
-var postgres = builder.AddPostgres("postgres")
+// Host port pinned (5433, not the default 5432, to avoid clashing with a host-installed
+// Postgres on dev machines) so external tools and pgAdmin connections stay stable across
+// restarts. Inter-service connectivity already uses Aspire service discovery.
+var postgres = builder.AddPostgres("postgres", port: 5433)
     .WithImage("pgvector/pgvector", "pg17")
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume("conduct-pg-data")
-    .WithPgAdmin();
+    .WithPgAdmin(c => c.WithHostPort(5050));
 
 var conductDb = postgres.AddDatabase("conductdb");
 
-// Kafka — bank-standard messaging; local container in dev, Azure Event Hubs (Kafka API) in prod
-//
-// EPHEMERAL (no persistence) on purpose: the Confluent dev image bakes
-// `advertised.listeners` into broker config on first launch using the host port Aspire
-// picked at THAT moment. On a subsequent run, if Docker remaps the container to a
-// different host port, the advertised listener is stale and clients fail to connect.
-// Letting the container be ephemeral forces fresh broker config each AppHost run.
-// Trade-off: lose topic data across restarts — fine for dev/POC.
-var kafka = builder.AddKafka("kafka")
-    .WithKafkaUI(); // browser UI for inspecting topics during dev
+// Kafka — bank-standard messaging; local container in dev, Azure Event Hubs (Kafka API) in prod.
+// Host port pinned (9092) so the advertised listener the broker bakes on first launch always
+// matches the host-side mapping on subsequent runs. This sidesteps the Confluent dev-image
+// "advertised.listeners stale on Docker re-map" bug that motivated the prior ephemeral hack.
+var kafka = builder.AddKafka("kafka", port: 9092)
+    .WithKafkaUI(c => c.WithHostPort(9080));
 
 // Keycloak — dev mode w/ realm import from infra/keycloak/realm
 var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26.3")
@@ -37,9 +36,11 @@ var api = builder.AddProject<Projects.Conduct_Api>("api")
 
 // Vite dev server (internal — reached only by BFF in dev).
 // AddViteApp already attaches a default http endpoint; do NOT call WithHttpEndpoint here
-// or Aspire throws "Endpoint with name 'http' already exists".
+// or Aspire throws "Endpoint with name 'http' already exists". Pin port via WithEndpoint
+// configurator so HMR and BFF service-discovery resolve to the same address each run.
 var web = builder.AddViteApp("web", "../web", "dev")
-    .WithPnpm(install: true);
+    .WithPnpm(install: true)
+    .WithEndpoint("http", e => e.Port = 5173);
 
 var bff = builder.AddProject<Projects.Conduct_Bff>("bff")
     .WithReference(api)
