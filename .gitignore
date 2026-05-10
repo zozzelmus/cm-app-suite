@@ -41,8 +41,9 @@ secrets.json
 .azure/
 azure.yaml.local
 
-# Claude Code session artifacts (allow team-shared config + hooks)
+# Claude Code session artifacts (allow team-shared config + hooks + skills)
 .claude/*
 !.claude/settings.json
 !.claude/hooks/
+!.claude/skills/
 .claude/settings.local.json

@@ -7,8 +7,8 @@ export function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-[var(--color-border)] px-6 py-3 flex items-center gap-6">
-        <span className="font-semibold tracking-tight">Conduct</span>
+      <header className="sticky top-0 z-40 h-14 border-b border-[var(--color-border)] bg-[var(--color-background)] px-6 flex items-center gap-6">
+        <span className="font-semibold tracking-tight text-[var(--color-foreground)]">Conduct</span>
         <nav className="flex gap-4 text-sm text-[var(--color-muted-foreground)]">
           <NavLink to="/" end className={({ isActive }) => cn(isActive && 'text-[var(--color-foreground)]')}>Home</NavLink>
           <NavLink to="/cases" className={({ isActive }) => cn(isActive && 'text-[var(--color-foreground)]')}>Cases</NavLink>
@@ -26,8 +26,10 @@ export function Layout() {
               )}
         </div>
       </header>
-      <main className="flex-1 p-6">
-        <Outlet />
+      <main className="flex-1 px-6 py-6 md:px-8 xl:px-14">
+        <div className="mx-auto max-w-[1240px]">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

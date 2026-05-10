@@ -1,43 +1,122 @@
+/* Conduct Design System tokens.
+   Source: design bundle README (Conduct Design System / chat: "Apply designs method").
+   Aesthetic: Claude restraint + L3Harris gravity. Warm-paper neutrals, ink charcoal,
+   single accent red used surgically. No gradients. Borders carry the load. */
+
+/* Fonts. Google Fonts CDN for bootstrap; self-host recommended for a regulated app. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;450;500&display=swap");
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* shadcn-compatible design tokens. Tailwind v4 uses @theme inline for custom tokens. */
-@theme inline {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222.2 84% 4.9%);
-  --color-muted: hsl(210 40% 96.1%);
-  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-border: hsl(214.3 31.8% 91.4%);
-  --color-input: hsl(214.3 31.8% 91.4%);
-  --color-primary: hsl(222.2 47.4% 11.2%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(210 40% 98%);
-  --radius: 0.5rem;
+/* Design tokens — single source of truth. */
+:root {
+  /* Surface / ink */
+  --paper: #FAF9F7;
+  --surface: #FFFFFF;
+  --surface-2: #F4F2EE;
+  --ink: #1A1D1D;
+  --ink-2: #283030;
+  --muted: #6B6F71;
+  --subtle: #9AA0A2;
+  --border: #E6E2DA;
+  --border-strong: #C9C3B5;
+
+  /* Accent (L3Harris red — used surgically) */
+  --accent: #E11D2A;
+  --accent-2: #B5121E;
+
+  /* Severity ramp */
+  --sev-low: #5C7A6B;
+  --sev-med: #A6792F;
+  --sev-high: #C5602A;
+  --sev-crit: #E11D2A;
+
+  /* Status */
+  --success: #3E7A5C;
+  --info: #345A7A;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-pill: 9999px;
+
+  /* Shadow — borders carry the load; one elevation for floating UI. */
+  --shadow-1: 0 1px 2px 0 rgba(20,22,22,0.04), 0 1px 1px 0 rgba(20,22,22,0.03);
+  --shadow-2: 0 8px 16px -4px rgba(20,22,22,0.10), 0 2px 4px -1px rgba(20,22,22,0.06);
+
+  /* Font families */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Type scale (size / line-height / weight / tracking) */
+  --fs-display: 32px;     --lh-display: 40px;  --tr-display: -0.02em;
+  --fs-h1: 24px;          --lh-h1: 32px;       --tr-h1: -0.01em;
+  --fs-h2: 18px;          --lh-h2: 26px;       --tr-h2: -0.005em;
+  --fs-h3: 15px;          --lh-h3: 22px;       --tr-h3: 0;
+  --fs-body: 14px;        --lh-body: 22px;
+  --fs-small: 13px;       --lh-small: 20px;
+  --fs-micro: 12px;       --lh-micro: 16px;    --tr-micro: 0.02em;
+  --fs-mono: 13px;        --lh-mono: 20px;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme inline {
-    --color-background: hsl(222.2 84% 4.9%);
-    --color-foreground: hsl(210 40% 98%);
-    --color-muted: hsl(217.2 32.6% 17.5%);
-    --color-muted-foreground: hsl(215 20.2% 65.1%);
-    --color-border: hsl(217.2 32.6% 17.5%);
-    --color-input: hsl(217.2 32.6% 17.5%);
-    --color-primary: hsl(210 40% 98%);
-    --color-primary-foreground: hsl(222.2 47.4% 11.2%);
-    --color-accent: hsl(217.2 32.6% 17.5%);
-    --color-accent-foreground: hsl(210 40% 98%);
-  }
+/* Tailwind v4 inline theme — aliases design tokens to shadcn-compatible names so
+   every existing component lights up without a single component-level change. */
+@theme inline {
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--border);
+  --color-input: var(--border-strong);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--paper);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--ink-2);
+  --color-destructive: var(--accent);
+  --color-destructive-foreground: #ffffff;
+
+  --radius: var(--r-md);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
+
+/* Dark mode intentionally dropped per design spec; revisit when tokens land. */
 
 html, body, #root { height: 100%; }
+
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: var(--color-background);
-  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  background: var(--paper);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11"; /* Inter: keep readable forms */
+}
+
+/* Headings — sentence case enforced in copy, not CSS. */
+h1 { font-size: var(--fs-h1);  line-height: var(--lh-h1);  letter-spacing: var(--tr-h1);  font-weight: 600; color: var(--ink-2); }
+h2 { font-size: var(--fs-h2);  line-height: var(--lh-h2);  letter-spacing: var(--tr-h2);  font-weight: 600; color: var(--ink-2); }
+h3 { font-size: var(--fs-h3);  line-height: var(--lh-h3);  letter-spacing: var(--tr-h3);  font-weight: 600; color: var(--ink-2); }
+
+/* Case numbers, IDs, code — tabular figures for unambiguous scanning. */
+code, kbd, samp, pre, .font-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  line-height: var(--lh-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tabular numerals utility for any inline figure (case numbers, dates, money). */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Focus — 2px ink ring at 2px offset, visible everywhere. Never removed. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
