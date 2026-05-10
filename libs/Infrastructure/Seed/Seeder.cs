@@ -38,8 +38,7 @@ public sealed class Seeder(ConductDbContext db)
             await SeedLobsAsync(cancellationToken);
             await SeedDefaultCaseTypeAsync(cancellationToken);
             await SeedBuiltInRolesAsync(cancellationToken);
-            var (demoUserId, _) = await SeedDemoUserAndPartyAsync(cancellationToken);
-            await SeedDemoAssignmentAsync(demoUserId, cancellationToken);
+            await SeedTestUsersAndAssignmentsAsync(cancellationToken);
 
             await tx.CommitAsync(cancellationToken);
         }, ct);
@@ -186,104 +185,103 @@ public sealed class Seeder(ConductDbContext db)
         await db.SaveChangesAsync(ct);
     }
 
-    // ────────── Demo User + Party + EmployeeProfile ──────────
-
-    private async Task<(Guid userId, Guid partyId)> SeedDemoUserAndPartyAsync(CancellationToken ct)
+    // ────────── Test users (one Manager + one Investigator per LOB, plus a System Admin) ──────────
+    //
+    // Mirrors the KC realm import (infra/keycloak/realm/conduct-realm.json) so that signing in
+    // through any path — regular OIDC or the dev login-as widget — lands on a User row whose
+    // KeycloakSub matches what KC issues. Idempotent.
+    private async Task SeedTestUsersAndAssignmentsAsync(CancellationToken ct)
     {
-        var existingUser = await db.Users.SingleOrDefaultAsync(
-            x => x.TenantId == DemoTenantId && x.KeycloakSub == DemoUserKeycloakSub, ct);
-        if (existingUser is not null && existingUser.PartyId is not null)
-            return (existingUser.Id, existingUser.PartyId.Value);
+        var rolesByName = await db.Roles
+            .Where(x => x.TenantId == DemoTenantId)
+            .ToDictionaryAsync(x => x.Name, ct);
+        var lobsByCode = await db.Lobs
+            .Where(x => x.TenantId == DemoTenantId)
+            .ToDictionaryAsync(x => x.ShortCode, ct);
 
-        Party party;
-        if (existingUser is { PartyId: not null })
+        foreach (var spec in TestUsers)
         {
-            party = await db.Parties.SingleAsync(x => x.Id == existingUser.PartyId, ct);
-        }
-        else
-        {
-            party = new Party
+            var user = await db.Users.SingleOrDefaultAsync(
+                u => u.TenantId == DemoTenantId && u.KeycloakSub == spec.KeycloakSub, ct);
+
+            Guid partyId;
+            if (user is { PartyId: not null })
+            {
+                partyId = user.PartyId.Value;
+            }
+            else
+            {
+                var party = new Party
+                {
+                    TenantId = DemoTenantId,
+                    IdentityKind = IdentityKind.Employee,
+                    DisplayName = $"{spec.FirstName} {spec.LastName}",
+                    IsAnonymous = false,
+                };
+                db.Parties.Add(party);
+                await db.SaveChangesAsync(ct);
+                partyId = party.Id;
+
+                db.EmployeeProfiles.Add(new EmployeeProfile
+                {
+                    TenantId = DemoTenantId,
+                    PartyId = partyId,
+                    EmployeeId = $"TEST-{spec.Username.ToUpperInvariant()}",
+                    Department = spec.LobShortCode ?? "Global",
+                    JobTitle = spec.RoleName,
+                    Email = $"{spec.Username}@conduct.local",
+                    SourceSystemRef = "seed:test-users",
+                });
+                await db.SaveChangesAsync(ct);
+            }
+
+            if (user is null)
+            {
+                user = new User
+                {
+                    TenantId = DemoTenantId,
+                    KeycloakSub = spec.KeycloakSub,
+                    Username = spec.Username,
+                    Email = $"{spec.Username}@conduct.local",
+                    FirstName = spec.FirstName,
+                    LastName = spec.LastName,
+                    PartyId = partyId,
+                    IsActive = true,
+                };
+                db.Users.Add(user);
+                await db.SaveChangesAsync(ct);
+            }
+            else if (user.PartyId is null)
+            {
+                user.PartyId = partyId;
+                await db.SaveChangesAsync(ct);
+            }
+
+            var role = rolesByName[spec.RoleName];
+            var scopeType = spec.LobShortCode is null ? AssignmentScopeType.Global : AssignmentScopeType.Lob;
+            Guid? scopeId = spec.LobShortCode is null ? null : lobsByCode[spec.LobShortCode].Id;
+
+            var existingAssignment = await db.Assignments.SingleOrDefaultAsync(a =>
+                a.TenantId == DemoTenantId &&
+                a.SubjectType == AssignmentSubjectType.User &&
+                a.SubjectId == user.Id &&
+                a.RoleId == role.Id &&
+                a.ScopeType == scopeType &&
+                a.ScopeId == scopeId,
+                ct);
+            if (existingAssignment is not null) continue;
+
+            db.Assignments.Add(new Assignment
             {
                 TenantId = DemoTenantId,
-                IdentityKind = IdentityKind.Employee,
-                DisplayName = "Demo User",
-                IsAnonymous = false,
-            };
-            db.Parties.Add(party);
-            await db.SaveChangesAsync(ct);
-        }
-
-        var existingProfile = await db.EmployeeProfiles.SingleOrDefaultAsync(p => p.PartyId == party.Id, ct);
-        if (existingProfile is null)
-        {
-            db.EmployeeProfiles.Add(new EmployeeProfile
-            {
-                TenantId = DemoTenantId,
-                PartyId = party.Id,
-                EmployeeId = "DEMO-0001",
-                Department = "Investigations",
-                JobTitle = "Investigator",
-                Email = DemoUserEmail,
-                SourceSystemRef = "seed:demo",
+                SubjectType = AssignmentSubjectType.User,
+                SubjectId = user.Id,
+                RoleId = role.Id,
+                ScopeType = scopeType,
+                ScopeId = scopeId,
             });
-        }
-
-        if (existingUser is null)
-        {
-            var user = new User
-            {
-                TenantId = DemoTenantId,
-                KeycloakSub = DemoUserKeycloakSub,
-                Username = DemoUsername,
-                Email = DemoUserEmail,
-                FirstName = "Demo",
-                LastName = "User",
-                PartyId = party.Id,
-                IsActive = true,
-            };
-            db.Users.Add(user);
             await db.SaveChangesAsync(ct);
-            return (user.Id, party.Id);
         }
-        else
-        {
-            existingUser.PartyId = party.Id;
-            await db.SaveChangesAsync(ct);
-            return (existingUser.Id, party.Id);
-        }
-    }
-
-    // ────────── Demo Assignment (Investigator on Investigations APAC) ──────────
-
-    private async Task SeedDemoAssignmentAsync(Guid demoUserId, CancellationToken ct)
-    {
-        var role = await db.Roles.SingleAsync(
-            x => x.TenantId == DemoTenantId && x.Name == RoleInvestigator, ct);
-        var lob = await db.Lobs.SingleAsync(
-            x => x.TenantId == DemoTenantId && x.ShortCode == LobInvestigationsApac, ct);
-
-        var existing = await db.Assignments.SingleOrDefaultAsync(a =>
-            a.TenantId == DemoTenantId &&
-            a.SubjectType == AssignmentSubjectType.User &&
-            a.SubjectId == demoUserId &&
-            a.RoleId == role.Id &&
-            a.ScopeType == AssignmentScopeType.Lob &&
-            a.ScopeId == lob.Id,
-            ct);
-
-        if (existing is not null) return;
-
-        db.Assignments.Add(new Assignment
-        {
-            TenantId = DemoTenantId,
-            SubjectType = AssignmentSubjectType.User,
-            SubjectId = demoUserId,
-            RoleId = role.Id,
-            ScopeType = AssignmentScopeType.Lob,
-            ScopeId = lob.Id,
-        });
-
-        await db.SaveChangesAsync(ct);
     }
 
     // ────────── JSON literals (kept inline so seed content is reviewable in one place) ──────────

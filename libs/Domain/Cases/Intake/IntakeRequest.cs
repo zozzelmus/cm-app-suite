@@ -5,10 +5,12 @@ namespace Conduct.Domain.Cases.Intake;
 // HTTP wire shape for POST /api/cases. Distinct from CreateCaseCommand (the Kafka envelope)
 // because this carries raw JSON for `data` / party `data` so we can re-serialize cleanly
 // after schema validation.
-public sealed class IntakeRequest
+public sealed record IntakeRequest
 {
     public required string CaseTypeKey { get; init; }
-    public required string LobShortCode { get; init; }
+    // Nullable on the wire so the SPA can omit it — the API's ICaseRoutingService resolves
+    // the initial LOB. Tests and internal callers may still set it explicitly to pin a LOB.
+    public string? LobShortCode { get; init; }
     public required string Title { get; init; }
     public required JsonNode Data { get; init; }
     public JsonNode? ExternalRefs { get; init; }

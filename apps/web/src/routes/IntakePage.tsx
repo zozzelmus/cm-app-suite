@@ -28,16 +28,15 @@ export function IntakePage() {
         schema={schema}
         onSubmit={async (data) => {
           try {
-            // POC defaults — real UI will let users pick the LOB and provide a title.
-            // For the smoke flow we use INV-APAC (a leaf LOB seeded in F1) and derive a
-            // title from the summary. Backlog: add LobPicker control + Title input above
-            // the schema-driven body.
+            // Initial LOB is decided server-side by ICaseRoutingService (every reporter-
+            // channel intake currently lands in SUI; the SUI triager moves it to the
+            // right LOB via the transfer task). Title is still derived from the summary
+            // until the form gets a dedicated Title input.
             const summary = (data['summary'] as string | undefined) ?? ''
             const ack = await bff<IntakeAck>('/api/cases', {
               method: 'POST',
               body: JSON.stringify({
                 caseTypeKey: 'default',
-                lobShortCode: 'INV-APAC',
                 title: summary.slice(0, 80) || 'New conduct case',
                 data,
               }),
